@@ -109,10 +109,11 @@ tight and cheap. Cross-day continuity comes from memory, not raw history.
 - Max input tokens per call enforced by trimming oldest messages (keep system + last 12).
 - Every LLM call logs `model`, `prompt_tokens`, `completion_tokens`, `latency_ms`.
 
-## 4. Model strategy (OpenAI)
+## 4. Model strategy (OpenAI or OpenAI-compatible)
 
 Configured in `.env`, read via `config.py`:
 ```
+OPENAI_BASE_URL=          # blank = OpenAI; e.g. https://api.groq.com/openai/v1 (ADR-004)
 OPENAI_MODEL_REASONING=   # planning, reviews, complex multi-tool turns
 OPENAI_MODEL_FAST=        # routing, NL parsing of dates/check-ins, formatting
 OPENAI_EMBEDDING_MODEL=   # semantic memory

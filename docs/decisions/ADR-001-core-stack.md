@@ -1,6 +1,6 @@
 # ADR-001: Core stack and architecture
 
-- Status: accepted
+- Status: accepted (decision 2 amended by ADR-004: any OpenAI-compatible API)
 - Date: 2026-11-21
 
 ## Context

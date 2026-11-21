@@ -376,3 +376,42 @@ class Recording(Scripted):
     async def create(self, **kwargs: Any) -> Any:
         self.kwargs.append(kwargs)
         return await super().create(**kwargs)
+
+
+# --- OpenAI-compatible providers and Retry-After (ADR-004) --------------------------------
+
+
+def test_base_url_points_the_client_at_another_provider(configured: pytest.MonkeyPatch) -> None:
+    assert str(llm.get_client().base_url) == "https://api.openai.com/v1/"
+    configured.setenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1")
+    _reset_caches()
+    assert str(llm.get_client().base_url) == "https://api.groq.com/openai/v1/"
+
+
+def rate_limited(after: str | None) -> openai.RateLimitError:
+    headers = {} if after is None else {"retry-after": after}
+    response = httpx.Response(429, headers=headers, request=REQUEST)
+    return openai.RateLimitError("slow down", response=response, body=None)
+
+
+def test_retry_after_is_read_from_the_response() -> None:
+    assert llm.retry_after(rate_limited("2.5")) == 2.5
+    assert llm.retry_after(rate_limited(None)) is None
+    assert llm.retry_after(rate_limited("soon")) is None
+    assert llm.retry_after(ValueError("no response")) is None
+
+
+async def test_a_short_retry_after_is_waited_out_on_the_same_model(
+    fallbacks: pytest.MonkeyPatch,
+) -> None:
+    endpoint = scripted(fallbacks, {"fast-model": [rate_limited("0"), COMPLETION]})
+    assert await llm.chat([{"role": "user", "content": "hi"}], purpose="route") is COMPLETION
+    assert endpoint.calls == ["fast-model", "fast-model"]
+
+
+async def test_a_long_retry_after_moves_straight_to_the_next_model(
+    fallbacks: pytest.MonkeyPatch,
+) -> None:
+    endpoint = scripted(fallbacks, {"fast-model": [rate_limited("3600")], "backup-1": [COMPLETION]})
+    await llm.chat([{"role": "user", "content": "hi"}], purpose="route")
+    assert endpoint.calls == ["fast-model", "backup-1"]  # no pointless retries on a daily cap

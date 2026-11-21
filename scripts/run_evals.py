@@ -4,6 +4,7 @@ Usage:
     uv run python scripts/run_evals.py                  # all cases
     uv run python scripts/run_evals.py --only capture   # ids containing "capture"
     uv run python scripts/run_evals.py -v               # also print each reply
+    uv run python scripts/run_evals.py --pause 5        # free tiers: stay under requests/min
 
 Needs OPENAI_API_KEY and the model names in .env (OPENAI_PRICES for costs). Each case runs on
 the `<db>_test` database inside a transaction that is always rolled back, with a fresh
@@ -251,7 +252,9 @@ async def main(args: argparse.Namespace) -> int:
     engine = get_engine()
     runs = []
     try:
-        for case in cases:
+        for i, case in enumerate(cases):
+            if i and args.pause:
+                await asyncio.sleep(args.pause)  # stay under a free tier's requests/minute
             runs.append(await run_case(case, engine))
             print(".", end="", flush=True)
         print()
@@ -264,5 +267,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", default="", help="run case ids containing this text")
     parser.add_argument("-v", "--verbose", action="store_true", help="print every reply")
+    parser.add_argument(
+        "--pause", type=float, default=0.0, help="seconds between cases (e.g. 5 on a free tier)"
+    )
     with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
         sys.exit(runner.run(main(parser.parse_args())))

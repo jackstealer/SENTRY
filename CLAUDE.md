@@ -52,7 +52,7 @@ CURRENT_PHASE: 3
 |---|---|
 | Language | Python 3.11+ (backend), TypeScript/React (dashboard, Phase 12) |
 | Agent orchestration | LangGraph (`StateGraph`, checkpointing via Postgres) |
-| LLM provider | **OpenAI API** — model names come from env vars, never hardcoded |
+| LLM provider | **OpenAI API** (or any OpenAI-compatible API via `OPENAI_BASE_URL`, e.g. Groq — ADR-004) — model names come from env vars, never hardcoded |
 | API server | FastAPI + Uvicorn |
 | Scheduler | APScheduler (AsyncIOScheduler) with Postgres job store |
 | Database | PostgreSQL 16 + pgvector, accessed via SQLAlchemy 2.0 (async) + Alembic |

@@ -15,7 +15,14 @@ import openai
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from structlog.contextvars import get_contextvars
-from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+    AsyncRetrying,
+    RetryCallState,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+from tenacity.stop import stop_base
 
 from sentry_ai.config import get_settings
 from sentry_ai.db.repositories import SystemRepo
@@ -41,6 +48,7 @@ MODEL_UNAVAILABLE: tuple[type[Exception], ...] = (
 )
 ATTEMPTS_PER_MODEL = 3
 RETRY_WAIT = wait_exponential(multiplier=1, min=1, max=4)  # 1 s, 2 s (tests set wait_none)
+MAX_RETRY_AFTER = 30.0  # seconds; a longer Retry-After (e.g. a daily cap) is not worth waiting for
 
 
 UsageSink = Callable[[LLMUsageCreate], Awaitable[None]]
@@ -54,11 +62,16 @@ class LLMNotConfiguredError(RuntimeError):
 
 @lru_cache
 def get_client() -> AsyncOpenAI:
-    key = get_settings().openai_api_key
-    if key is None:
+    settings = get_settings()
+    if settings.openai_api_key is None:
         raise LLMNotConfiguredError("OPENAI_API_KEY is not set")
     # max_retries=0: retries are ours (tenacity below), so they never stack with the SDK's
-    return AsyncOpenAI(api_key=key.get_secret_value(), timeout=30.0, max_retries=0)
+    return AsyncOpenAI(
+        api_key=settings.openai_api_key.get_secret_value(),
+        base_url=settings.openai_base_url or None,  # None = the SDK's default (OpenAI)
+        timeout=30.0,
+        max_retries=0,
+    )
 
 
 def model_for(tier: ModelTier) -> str:
@@ -74,10 +87,33 @@ def candidates(tier: ModelTier) -> list[str]:
     return list(dict.fromkeys([model_for(tier), *get_settings().openai_model_fallbacks]))
 
 
+def retry_after(exc: BaseException | None) -> float | None:
+    """Seconds from a rate-limited response's Retry-After header, if it sent one."""
+    response = getattr(exc, "response", None)
+    value = getattr(response, "headers", {}).get("retry-after")
+    try:
+        return None if value is None else max(float(value), 0.0)
+    except ValueError:
+        return None
+
+
+def _wait(state: RetryCallState) -> float:
+    after = retry_after(state.outcome.exception() if state.outcome else None)
+    return after if after is not None else RETRY_WAIT(state)
+
+
+class _StopIfWaitIsLong(stop_base):
+    """Stop retrying this model when the server asks for a wait longer than MAX_RETRY_AFTER."""
+
+    def __call__(self, retry_state: RetryCallState) -> bool:
+        after = retry_after(retry_state.outcome.exception() if retry_state.outcome else None)
+        return after is not None and after > MAX_RETRY_AFTER
+
+
 async def _with_retries(call: Callable[[], Awaitable[T]]) -> T:
     retrying = AsyncRetrying(
-        stop=stop_after_attempt(ATTEMPTS_PER_MODEL),
-        wait=RETRY_WAIT,
+        stop=stop_after_attempt(ATTEMPTS_PER_MODEL) | _StopIfWaitIsLong(),
+        wait=_wait,  # the server's Retry-After when given (free tiers send it), else backoff
         retry=retry_if_exception_type(TRANSIENT),
         reraise=True,
     )

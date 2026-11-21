@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     api_port: int = 8000
 
     openai_api_key: SecretStr | None = None
+    # blank = OpenAI; any OpenAI-compatible API works, e.g. https://api.groq.com/openai/v1 (ADR-004)
+    openai_base_url: str = ""
     openai_model_reasoning: str = ""
     openai_model_fast: str = ""
     openai_embedding_model: str = ""
