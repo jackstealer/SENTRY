@@ -1,0 +1,468 @@
+# Agent eval cases (ROADMAP 3.8). Run against the real API with: uv run python scripts/run_evals.py
+# Format and matchers: sentry_ai/agent/evals.py. Each case runs on a fresh, rolled-back DB.
+# Most cases use Monday 23 Nov 2026, 10:00 IST: "tomorrow" is the 24th, "friday" the 27th.
+# Expected tools must be called in order with matching key args; extra READ calls are fine,
+# any unexpected write or destructive call fails the case.
+
+# --- capture ----------------------------------------------------------------------------------
+
+- id: capture-task-due-friday
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "remind me to submit SE assignment friday 5pm"
+      expect:
+        intent: capture
+        tools:
+          - name: create_task
+            args: {title: {contains: "SE assignment"}, due_at: "2026-11-27T17:00:00+05:30"}
+
+- id: capture-reminder-tonight
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "remind me to call mom at 8"
+      expect:
+        intent: capture
+        tools:
+          - name: create_reminder
+            args: {message: {contains: "mom"}, fire_at: "2026-11-23T20:00:00+05:30"}
+
+- id: capture-habit-nightly
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "start tracking reading, 20 minutes every night at 11pm"
+      expect:
+        intent: capture
+        tools:
+          - name: create_habit
+            args: {name: {contains: "read"}, rrule: {contains: "FREQ=DAILY"}, preferred_time: "23:00"}
+
+- id: capture-routine-gym
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "I go to the gym monday to saturday at 6pm for an hour and a half"
+      expect:
+        intent: capture
+        tools:
+          - name: create_routine
+            args:
+              title: {contains: "gym"}
+              start_time: "18:00"
+              duration_min: 90
+              rrule: {contains: "BYDAY=MO,TU,WE,TH,FR,SA"}
+
+- id: capture-undated-task
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "add buy groceries to my list"
+      expect:
+        intent: capture
+        tools:
+          - name: create_task
+            args: {title: {contains: "groceries"}, due_at: {present: false}}
+
+# --- checkin ----------------------------------------------------------------------------------
+
+- id: checkin-done-fuzzy-task
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    tasks: [{title: "Submit SE assignment", due_at: "2026-11-27T17:00:00+05:30", priority: 1}]
+  turns:
+    - say: "done with the SE thing"
+      expect:
+        intent: checkin
+        tools:
+          - name: complete_task
+            args: {task_id: {ref: tasks.0}}
+
+- id: checkin-habit-done
+  now: "2026-11-23T19:30:00+05:30"
+  setup:
+    habits: [{name: "Workout", rrule: "FREQ=DAILY"}]
+  turns:
+    - say: "done workout"
+      expect:
+        intent: checkin
+        tools:
+          - name: log_habit
+            args:
+              - {habit_id: {ref: habits.0}, status: done}
+              - {habit_name: {contains: "workout"}, status: done}
+
+- id: checkin-habit-skip
+  now: "2026-11-23T21:30:00+05:30"
+  setup:
+    habits: [{name: "DSA practice", rrule: "FREQ=DAILY", preferred_time: "21:00"}]
+  turns:
+    - say: "skipping DSA today, too tired"
+      expect:
+        intent: checkin
+        tools:
+          - name: log_habit
+            args:
+              - {habit_id: {ref: habits.0}, status: skipped}
+              - {habit_name: {contains: "DSA"}, status: skipped}
+
+- id: checkin-snooze-reminder
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    reminders: [{message: "Call mom", fire_at: "2026-11-23T10:30:00+05:30"}]
+  turns:
+    - say: "snooze the call mom reminder by 15 minutes"
+      expect:
+        intent: checkin
+        tools:
+          - name: snooze_reminder
+            args: {reminder_id: {ref: reminders.0}, minutes: 15}
+
+- id: checkin-skip-task
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    tasks: [{title: "Laundry", due_at: "2026-11-23T18:00:00+05:30"}]
+  turns:
+    - say: "I'm not doing the laundry today, skip it"
+      expect:
+        intent: [checkin, manage]
+        tools:
+          - name: skip_task
+            args: {task_id: {ref: tasks.0}}
+
+# --- query ------------------------------------------------------------------------------------
+
+- id: query-today
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    tasks: [{title: "Submit SE assignment", due_at: "2026-11-23T17:00:00+05:30"}]
+  turns:
+    - say: "what's on today?"
+      expect:
+        intent: query  # today's snapshot is in the prompt, so no tool call is required
+
+- id: query-free-tomorrow
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "when am I free tomorrow?"
+      expect:
+        intent: query
+        tools:
+          - name: get_free_slots
+            args: {date: "2026-11-24"}
+
+- id: query-habits
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    habits: [{name: "Reading", rrule: "FREQ=DAILY"}, {name: "DSA practice", rrule: "FREQ=DAILY"}]
+  turns:
+    - say: "how are my habits looking?"
+      expect:
+        intent: [query, review]
+        tools:
+          - name: get_habits_status
+
+- id: query-project-tasks
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    tasks:
+      - {title: "Graph problems set", project: "DSA"}
+      - {title: "Buy groceries"}
+  turns:
+    - say: "list my DSA tasks"
+      expect:
+        intent: query
+        tools:
+          - name: list_tasks
+            args: {project: {contains: "DSA"}}
+
+- id: query-friday
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "what do I have on friday?"
+      expect:
+        intent: query
+        tools:
+          - name: get_today_overview
+            args: {date: "2026-11-27"}
+
+# --- plan -------------------------------------------------------------------------------------
+
+- id: plan-today
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    tasks:
+      - {title: "Submit SE assignment", due_at: "2026-11-23T17:00:00+05:30", estimate_min: 90}
+      - {title: "Buy groceries"}
+  turns:
+    - say: "plan my day"
+      expect:
+        intent: plan
+        tools:
+          - name: propose_day_plan
+            args: {date: {any_of: ["2026-11-23", null]}}
+
+- id: plan-tomorrow
+  now: "2026-11-23T22:30:00+05:30"
+  setup:
+    tasks: [{title: "DSA graphs revision", project: "DSA", estimate_min: 60}]
+  turns:
+    - say: "plan tomorrow for me, DSA first"
+      expect:
+        intent: plan
+        tools:
+          - name: propose_day_plan
+            args: {date: "2026-11-24"}
+
+- id: plan-evening-then-confirm
+  now: "2026-11-23T16:00:00+05:30"
+  setup:
+    tasks: [{title: "Read OS chapter 4", estimate_min: 45}]
+  turns:
+    - say: "plan my evening"
+      expect:
+        intent: plan
+        tools:
+          - name: propose_day_plan
+    - say: "looks good, lock it in"
+      expect:
+        intent: plan
+        tools:
+          - name: confirm_day_plan
+            args: {plan_id: {present: true}}
+
+- id: plan-within-window
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    tasks: [{title: "Laundry"}, {title: "Email professor"}]
+  turns:
+    - say: "I'm only free from 3 to 6 today, plan that"
+      expect:
+        intent: plan
+        tools:
+          - name: propose_day_plan
+            args: {available_windows: {present: true}}
+
+# --- review -----------------------------------------------------------------------------------
+
+- id: review-week
+  now: "2026-11-23T21:00:00+05:30"
+  turns:
+    - say: "how did this week go?"
+      expect:
+        intent: review
+        tools:
+          - name: get_stats
+            args: {range: week}
+
+- id: review-month
+  now: "2026-11-23T21:00:00+05:30"
+  turns:
+    - say: "give me a review of the last month"
+      expect:
+        intent: review
+        tools:
+          - name: get_stats
+            args: {range: month}
+
+- id: review-habits-week
+  now: "2026-11-23T21:00:00+05:30"
+  setup:
+    habits: [{name: "Gym", rrule: "FREQ=DAILY", period: week, target_per_period: 4}]
+  turns:
+    - say: "how are my habits doing this week?"
+      expect:
+        intent: [review, query]
+        tools:
+          - name: get_habits_status
+            args: {period: week}
+
+- id: review-push-task
+  now: "2026-11-23T20:00:00+05:30"
+  setup:
+    tasks: [{title: "Submit SE assignment", due_at: "2026-11-23T23:00:00+05:30"}]
+  turns:
+    - say: "I won't finish the SE assignment tonight, push it to tomorrow 5pm"
+      expect:
+        intent: [review, manage, checkin, plan]
+        tools:
+          - name: update_task
+            args: {task_id: {ref: tasks.0}, due_at: "2026-11-24T17:00:00+05:30"}
+
+# --- preference -------------------------------------------------------------------------------
+
+- id: pref-no-tasks-before
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "never schedule tasks before 7am"
+      expect:
+        intent: preference
+        tools:
+          - name: set_preference
+            args: {key: no_tasks_before, value: {any_of: ["07:00", {time: "07:00"}]}}
+
+- id: pref-quiet-hours
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "my quiet hours are 11:30pm to 6:30am"
+      expect:
+        intent: preference
+        tools:
+          - name: set_preference
+            args: {key: quiet_hours, value: {start: "23:30", end: "06:30"}}
+
+- id: pref-default-reminder
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "by default remind me 30 minutes before things"
+      expect:
+        intent: preference
+        tools:
+          - name: set_preference
+            args: {key: default_reminder_min, value: {any_of: [30, {minutes: 30}]}}
+
+- id: pref-remember
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "remember that I prefer deep work after 9pm"
+      expect:
+        intent: preference
+        tools:
+          - name: remember
+            args: {content: {contains: "deep work"}}
+
+- id: pref-forget-confirmed
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    memories: [{content: "Has a dog named Bruno", kind: fact}]
+  turns:
+    - say: "forget that I have a dog"
+      expect:
+        intent: preference
+        confirmation: true
+        tools:
+          - name: forget
+    - say: "yes"
+      expect:
+        tools:
+          - name: forget
+
+# --- manage -----------------------------------------------------------------------------------
+
+- id: manage-move-routine
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    routines:
+      - {title: "Gym", category: fitness, rrule: "FREQ=DAILY", start_time: "18:00", duration_min: 90}
+  turns:
+    - say: "move my gym to 7pm"
+      expect:
+        intent: [manage, plan]
+        tools:
+          - name: update_routine
+            args: {routine_id: {ref: routines.0}, start_time: "19:00"}
+
+- id: manage-delete-habit-confirmed
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    habits: [{name: "Reading", rrule: "FREQ=DAILY"}]
+  turns:
+    - say: "delete the reading habit"
+      expect:
+        intent: manage
+        confirmation: true
+        tools:
+          - name: delete_habit
+            args: {habit_id: {ref: habits.0}}
+    - say: "yes, delete it"
+      expect:
+        tools:
+          - name: delete_habit
+            args: {habit_id: {ref: habits.0}}
+
+- id: manage-archive-done-confirmed
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    done_tasks:
+      - {title: "Old lab report", completed_at: "2026-11-10T12:00:00+05:30"}
+      - {title: "Old quiz", completed_at: "2026-11-15T12:00:00+05:30"}
+  turns:
+    - say: "clear out all my completed tasks"
+      expect:
+        intent: manage
+        confirmation: true
+        tools:
+          - name: archive_tasks
+            args: {completed_before: {present: true}}
+    - say: "yes go ahead"
+      expect:
+        tools:
+          - name: archive_tasks
+
+- id: manage-archive-declined
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    done_tasks: [{title: "Old lab report", completed_at: "2026-11-10T12:00:00+05:30"}]
+  turns:
+    - say: "delete all done tasks"
+      expect:
+        intent: manage
+        confirmation: true
+        tools:
+          - name: archive_tasks
+    - say: "no wait, keep them"
+      expect: {}
+
+- id: manage-cancel-reminder
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    reminders: [{message: "Call mom", fire_at: "2026-11-23T20:00:00+05:30"}]
+  turns:
+    - say: "cancel the call mom reminder"
+      expect:
+        intent: [manage, checkin]
+        tools:
+          - name: cancel_reminder
+            args: {reminder_id: {ref: reminders.0}}
+
+- id: manage-rename-habit
+  now: "2026-11-23T10:00:00+05:30"
+  setup:
+    habits: [{name: "DSA practice", rrule: "FREQ=DAILY"}]
+  turns:
+    - say: "rename my DSA habit to LeetCode daily"
+      expect:
+        intent: manage
+        tools:
+          - name: update_habit
+            args: {habit_id: {ref: habits.0}, name: {contains: "LeetCode"}}
+
+# --- smalltalk --------------------------------------------------------------------------------
+
+- id: smalltalk-hi
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "hey sentry"
+      expect: {intent: smalltalk}
+
+- id: smalltalk-thanks
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "thanks, that's all for now"
+      expect: {intent: smalltalk}
+
+- id: smalltalk-goodnight
+  now: "2026-11-23T23:10:00+05:30"
+  turns:
+    - say: "good night"
+      expect: {intent: smalltalk}
+
+# --- other ------------------------------------------------------------------------------------
+
+- id: other-math
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "what's 17 times 23?"
+      expect: {intent: [other, smalltalk]}
+
+- id: other-weather
+  now: "2026-11-23T10:00:00+05:30"
+  turns:
+    - say: "will it rain tomorrow?"
+      expect: {intent: [other, query, smalltalk]}
