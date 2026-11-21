@@ -40,7 +40,7 @@ If any doc contradicts another, **stop and ask me**. Do not guess.
 ## 3. Current phase
 
 ```
-CURRENT_PHASE: 2
+CURRENT_PHASE: 3
 ```
 
 > I update this line when a phase is done. Only build what the current phase
