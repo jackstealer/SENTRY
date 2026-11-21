@@ -85,7 +85,7 @@ Tasks
 - [ ] 1.6 `services/routines.py`: expand routines + habits into instances for a given local date
 - [ ] 1.7 Habit streak calculation (pure function + tests incl. week-period habits)
 - [ ] 1.8 Seed script `scripts/seed_from_profile.py`: reads `docs/USER_PROFILE.md` YAML block → inserts routines, habits, preferences
-- [ ] 1.9 Test fixtures: ephemeral test DB (transaction rollback per test)
+- [x] 1.9 Test fixtures: ephemeral test DB (transaction rollback per test)
 
 Acceptance
 - [ ] Migration up/down works cleanly

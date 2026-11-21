@@ -10,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from sentry_ai.config import Settings, get_settings
 from sentry_ai.db.session import get_engine
@@ -67,3 +67,23 @@ async def engine(database: str) -> AsyncIterator[AsyncEngine]:
     eng = get_engine()
     yield eng
     await eng.dispose()
+
+
+@pytest.fixture
+async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
+    """Per-test session: commits are savepoints inside one outer transaction, always rolled back."""
+    async with engine.connect() as conn:
+        outer = await conn.begin()
+        db = AsyncSession(
+            bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False
+        )
+        try:
+            yield db
+        finally:
+            await db.close()
+            await outer.rollback()
+
+
+@pytest.fixture
+def user_id() -> str:
+    return "test-user"
