@@ -1,4 +1,4 @@
-# Roadmap — JARVIS
+# Roadmap — SENTRY
 
 Rules for Claude Code:
 - Work **only** on the phase set in `CLAUDE.md` → `CURRENT_PHASE`.
@@ -6,7 +6,7 @@ Rules for Claude Code:
 - A phase is done only when **every acceptance criterion** passes. Then stop and tell me — I bump the phase.
 - If a task turns out bigger than expected, split it here first, then build.
 
-Estimated total: ~14–18 weeks part-time. Phases 0–6 (~5 weeks) give a fully usable daily assistant; 7–14 add the JARVIS layer.
+Estimated total: ~14–18 weeks part-time. Phases 0–6 (~5 weeks) give a fully usable daily assistant; 7–14 add the JARVIS-style layer.
 
 ---
 
@@ -15,16 +15,16 @@ Estimated total: ~14–18 weeks part-time. Phases 0–6 (~5 weeks) give a fully 
 Goal: a clean, runnable skeleton. No AI features yet.
 
 Tasks
-- [ ] 0.1 Init repo: `pyproject.toml` (uv), ruff, mypy (strict on `jarvis/`), pytest, pre-commit
-- [ ] 0.2 Folder structure exactly as `CLAUDE.md` §6 (+ `jarvis/services/`)
-- [ ] 0.3 `jarvis/config.py` with pydantic-settings; `.env.example` with every variable (see list below)
+- [ ] 0.1 Init repo: `pyproject.toml` (uv), ruff, mypy (strict on `sentry_ai/`), pytest, pre-commit
+- [ ] 0.2 Folder structure exactly as `CLAUDE.md` §6 (+ `sentry_ai/services/`)
+- [ ] 0.3 `sentry_ai/config.py` with pydantic-settings; `.env.example` with every variable (see list below)
 - [ ] 0.4 `docker-compose.yml` with `pgvector/pgvector:pg16`, healthcheck, named volume
-- [ ] 0.5 SQLAlchemy async engine + session factory (`jarvis/db/session.py`)
+- [ ] 0.5 SQLAlchemy async engine + session factory (`sentry_ai/db/session.py`)
 - [ ] 0.6 Alembic set up (async), first migration: `CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;`
-- [ ] 0.7 structlog JSON logging with `trace_id` contextvar (`jarvis/observability/logging.py`)
+- [ ] 0.7 structlog JSON logging with `trace_id` contextvar (`sentry_ai/observability/logging.py`)
 - [ ] 0.8 FastAPI app with `/health` (checks DB connectivity)
-- [ ] 0.9 `jarvis/main.py` boots FastAPI via Uvicorn programmatically
-- [ ] 0.10 OpenAI client wrapper (`jarvis/agent/llm.py`): one function per purpose, logs tokens/latency, reads model names from config
+- [ ] 0.9 `sentry_ai/main.py` boots FastAPI via Uvicorn programmatically
+- [ ] 0.10 OpenAI client wrapper (`sentry_ai/agent/llm.py`): one function per purpose, logs tokens/latency, reads model names from config
 - [ ] 0.11 Smoke test: `tests/test_smoke.py` — config loads, DB reachable, one cheap LLM call (skipped if no API key)
 - [ ] 0.12 `README.md` setup steps verified from a clean clone
 
@@ -34,7 +34,7 @@ ENV=dev
 USER_ID=me
 USER_NAME=
 USER_TZ=Asia/Kolkata
-DATABASE_URL=postgresql+asyncpg://jarvis:jarvis@localhost:5432/jarvis
+DATABASE_URL=postgresql+asyncpg://sentry:sentry@localhost:5432/sentry
 OPENAI_API_KEY=
 OPENAI_MODEL_REASONING=
 OPENAI_MODEL_FAST=
@@ -44,7 +44,7 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_ALLOWED_CHAT_ID=
 GOOGLE_OAUTH_CLIENT_FILE=
 GOOGLE_TOKEN_FILE=
-GOOGLE_JARVIS_CALENDAR_ID=
+GOOGLE_SENTRY_CALENDAR_ID=
 PERSONA_HONORIFIC=sir
 OPENAI_MODEL_FALLBACKS=
 DASHBOARD_TOKEN=
@@ -64,7 +64,7 @@ LOG_LEVEL=INFO
 
 Acceptance
 - [ ] `docker compose up -d postgres && alembic upgrade head` works on a clean machine
-- [ ] `uv run python -m jarvis.main` → `GET /health` returns `{"status":"ok","db":"ok"}`
+- [ ] `uv run python -m sentry_ai.main` → `GET /health` returns `{"status":"ok","db":"ok"}`
 - [ ] `pytest -q`, `ruff`, `mypy` all clean
 - [ ] Logs are JSON and include `trace_id`
 
@@ -75,11 +75,11 @@ Acceptance
 Goal: every table from `DATA_MODEL.md`, with repositories and tests. Still no AI.
 
 Tasks
-- [ ] 1.1 ORM models for all tables in `DATA_MODEL.md` (`jarvis/db/models.py`)
+- [ ] 1.1 ORM models for all tables in `DATA_MODEL.md` (`sentry_ai/db/models.py`)
 - [ ] 1.2 Alembic migration(s) generating the full schema incl. indexes, CHECKs, partial unique index, HNSW index
-- [ ] 1.3 Pydantic DTOs (`jarvis/db/schemas.py`)
+- [ ] 1.3 Pydantic DTOs (`sentry_ai/db/schemas.py`)
 - [ ] 1.4 Repositories (one per aggregate) with CRUD + query methods needed by TOOLS_SPEC
-- [ ] 1.5 `jarvis/services/time.py`: now_local(), to_utc(), local_date_of(), parse helpers; RRULE expansion with `python-dateutil`
+- [ ] 1.5 `sentry_ai/services/time.py`: now_local(), to_utc(), local_date_of(), parse helpers; RRULE expansion with `python-dateutil`
 - [ ] 1.6 `services/routines.py`: expand routines + habits into instances for a given local date
 - [ ] 1.7 Habit streak calculation (pure function + tests incl. week-period habits)
 - [ ] 1.8 Seed script `scripts/seed_from_profile.py`: reads `docs/USER_PROFILE.md` YAML block → inserts routines, habits, preferences
@@ -129,7 +129,7 @@ Tasks
 - [ ] 3.4 Graph wiring + Postgres checkpointer, thread per (user, local date)
 - [ ] 3.5 Loop guard (6 tool iterations), message trimming
 - [ ] 3.6 `llm_usage` recording on every call
-- [ ] 3.7 `jarvis/cli.py` — one-shot + interactive REPL mode (`--repl`)
+- [ ] 3.7 `sentry_ai/cli.py` — one-shot + interactive REPL mode (`--repl`)
 - [ ] 3.8 Eval set `tests/evals/agent_cases.yaml`: ≥ 30 utterances with expected intent + expected tool calls (e.g. "remind me to submit SE assignment friday 5pm" → capture → create_task with due_at Fri 17:00 IST)
 - [ ] 3.9 `scripts/run_evals.py` — runs cases against real API, prints pass rate (not part of default pytest)
 - [ ] 3.10 Model fallback in `agent/llm.py`: retry with backoff, then try models from `OPENAI_MODEL_FALLBACKS`; log each fallback (pattern from GYAN1, see REFERENCE_GYAN1.md)
@@ -144,7 +144,7 @@ Acceptance
 
 ## Phase 4 — Scheduler & proactivity (3–4 days)
 
-Goal: JARVIS starts talking first. Output to CLI/log in this phase; Telegram next.
+Goal: SENTRY starts talking first. Output to CLI/log in this phase; Telegram next.
 
 Tasks
 - [ ] 4.1 `scheduler/setup.py` — AsyncIOScheduler + SQLAlchemyJobStore, started from `main.py`
@@ -192,9 +192,9 @@ Acceptance
 
 Tasks
 - [ ] 6.1 Google OAuth desktop flow script (`scripts/google_auth.py`), token stored at `GOOGLE_TOKEN_FILE`
-- [ ] 6.2 `calendar_sync` job → `calendar_events` cache (read all calendars I select, write only JARVIS calendar)
+- [ ] 6.2 `calendar_sync` job → `calendar_events` cache (read all calendars I select, write only SENTRY calendar)
 - [ ] 6.3 Planner treats calendar events as fixed blocks
-- [ ] 6.4 `confirm_day_plan` writes blocks to JARVIS calendar; `move_block` updates them
+- [ ] 6.4 `confirm_day_plan` writes blocks to SENTRY calendar; `move_block` updates them
 - [ ] 6.5 Memory extraction after each turn (FAST model, structured output → candidate facts/preferences)
 - [ ] 6.6 `memory_consolidation` job: dedupe by similarity (> 0.9 → merge), mark superseded, decay unused
 - [ ] 6.7 Pattern detection in weekly review (e.g. habit missed on same weekday ≥ 3 times; tasks rolled over ≥ 3 times)

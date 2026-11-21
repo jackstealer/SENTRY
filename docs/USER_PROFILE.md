@@ -5,14 +5,14 @@
 > routines, habits and preferences into the database.
 > Replace every example value with your real routine. Delete lines you don't need.
 
-## About me (free text — helps JARVIS plan sensibly)
+## About me (free text — helps SENTRY plan sensibly)
 
 - Name:
 - What I do: (e.g. B.Tech CSE student, 3rd year)
 - Main goals for the next 3 months: (e.g. placement prep, finish projects, consistent gym)
 - When I focus best: (e.g. late night 9–11 PM)
 - What usually derails my day:
-- How strict should JARVIS be? (gentle / balanced / strict)
+- How strict should SENTRY be? (gentle / balanced / strict)
 
 ## Machine-readable profile
 
@@ -113,13 +113,13 @@ mail:                         # Phase 11 — what counts as important
   important_senders: ["<college domain>", "<placement cell address>"]
   important_keywords: ["deadline", "placement", "exam", "assignment", "interview"]
 
-projects:                     # optional tags JARVIS will recognise in task text
+projects:                     # optional tags SENTRY will recognise in task text
   - "DSA"
   - "College assignments"
   - "Side projects"
 ```
 
-## Things JARVIS should never do
+## Things SENTRY should never do
 
 - (e.g. never schedule anything during classes)
 - (e.g. don't message me during exams week except reminders I set)

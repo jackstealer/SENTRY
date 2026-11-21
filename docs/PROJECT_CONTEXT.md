@@ -1,4 +1,4 @@
-# Project Context — JARVIS
+# Project Context — SENTRY
 
 ## 1. Vision
 
@@ -10,7 +10,7 @@ it knows my schedule, reminds me before I forget, adapts the plan when things
 slip, tracks whether I'm actually doing what I said I would, and talks to me
 like a sharp, slightly dry butler — not a generic chatbot.
 
-The core difference from a to-do app: **JARVIS is proactive.** It initiates
+The core difference from a to-do app: **SENTRY is proactive.** It initiates
 conversations (morning brief, reminders, nudges, evening review). I should be
 able to forget the app exists and still have my day run on track.
 
@@ -26,7 +26,7 @@ able to forget the app exists and still have my day run on track.
 ## 3. Core use cases (v1)
 
 ### UC-1 Morning brief (proactive)
-At my configured wake time, JARVIS sends a Telegram message:
+At my configured wake time, SENTRY sends a Telegram message:
 - today's fixed blocks (classes, gym, etc.) from my routine + Google Calendar,
 - top 3 tasks for today (by priority/deadline),
 - habits due today,
@@ -34,7 +34,7 @@ At my configured wake time, JARVIS sends a Telegram message:
 - one line of weather-free, useful commentary ("You have a 2-hour gap after lunch — good slot for the DSA set you skipped yesterday.").
 
 ### UC-2 Plan my day (on demand)
-"plan my day" / "I have 4 free hours, what should I do?" → JARVIS builds a
+"plan my day" / "I have 4 free hours, what should I do?" → SENTRY builds a
 time-blocked plan from fixed blocks + task backlog + habits + energy
 preferences, and asks for confirmation before writing it to the calendar.
 
@@ -48,7 +48,7 @@ preferences, and asks for confirmation before writing it to the calendar.
 date + reminder, confirms back in one line.
 
 ### UC-5 Habit tracking
-Daily/weekly habits (e.g. workout, DSA practice, reading). JARVIS logs
+Daily/weekly habits (e.g. workout, DSA practice, reading). SENTRY logs
 check-ins from replies ("done gym"), tracks streaks, and surfaces patterns
 ("You've missed DSA every Thursday for 3 weeks.").
 
@@ -62,7 +62,7 @@ Sunday evening: habit completion %, tasks done vs planned, time-block
 adherence, one concrete suggestion for next week.
 
 ### UC-8 Memory
-JARVIS remembers stated preferences and facts ("I'm more focused at night",
+SENTRY remembers stated preferences and facts ("I'm more focused at night",
 "never schedule anything before 7am") and applies them in future plans without
 me repeating them.
 
@@ -73,7 +73,7 @@ and suggests habit check-ins from real activity ("45 min on LeetCode — log DSA
 
 ### UC-9 Calendar sync
 Reads Google Calendar for fixed events; writes plan blocks to a dedicated
-"JARVIS" calendar (never edits my other calendars).
+"SENTRY" calendar (never edits my other calendars).
 
 ## 4. Scope
 
@@ -82,7 +82,7 @@ Reads Google Calendar for fixed events; writes plan blocks to a dedicated
 - LangGraph agent with tool-calling (OpenAI)
 - Routines, tasks, habits, reminders, day plans, reviews
 - APScheduler-driven proactive messages
-- Google Calendar read + write (JARVIS calendar only)
+- Google Calendar read + write (SENTRY calendar only)
 - Episodic + semantic memory (Postgres + pgvector)
 - Structured logging + basic metrics
 - Docker Compose deployment (laptop or a small VPS)

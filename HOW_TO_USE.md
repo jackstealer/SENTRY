@@ -1,6 +1,6 @@
 # How to use this pack with Claude Code
 
-This pack is the **brain dump** Claude Code needs to build JARVIS without
+This pack is the **brain dump** Claude Code needs to build SENTRY without
 guessing. You don't run anything here — you drop it into an empty repo and let
 Claude Code build phase by phase.
 
@@ -9,7 +9,7 @@ Claude Code build phase by phase.
 Unzip into the root of a new, empty project folder:
 
 ```
-jarvis/                        ← your project root (git init here)
+SENTRY/                        ← your project root (git init here)
 ├── CLAUDE.md                  ← Claude Code auto-loads this every session
 ├── HOW_TO_USE.md              ← this file (for you; safe to delete later)
 ├── .gitignore
@@ -23,7 +23,7 @@ jarvis/                        ← your project root (git init here)
     ├── ARCHITECTURE.md        ← components, LangGraph graph, scheduler, data flow
     ├── DATA_MODEL.md          ← every table (schema is locked)
     ├── TOOLS_SPEC.md          ← every tool the agent can call
-    ├── PERSONA.md             ← JARVIS voice + system prompt
+    ├── PERSONA.md             ← SENTRY voice + system prompt
     ├── ROADMAP.md             ← phases, tasks, acceptance criteria
     ├── CONVENTIONS.md         ← code style, testing, git, deps
     ├── USER_PROFILE.md        ← YOU fill this — your real routine
@@ -53,7 +53,7 @@ jarvis/                        ← your project root (git init here)
 ## 3. Daily workflow inside Claude Code
 
 ```
-cd jarvis
+cd SENTRY
 claude
 ```
 Then:

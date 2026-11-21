@@ -1,4 +1,4 @@
-# CLAUDE.md — JARVIS (Personal Routine AI)
+# CLAUDE.md — SENTRY (Personal Routine AI)
 
 > Claude Code reads this file automatically at the start of every session.
 > It is the single entry point. Everything else lives in `docs/` — read the
@@ -8,7 +8,7 @@
 
 ## 1. What this project is
 
-JARVIS is a **single-user, always-on personal AI system that runs my daily
+SENTRY is a **single-user, always-on personal AI system that runs my daily
 routine** — plans my day, reminds me proactively, tracks habits and tasks,
 reviews my day with me, and learns my patterns over time. Think Tony Stark's
 JARVIS, scoped to routine management first.
@@ -27,7 +27,7 @@ It is **not** a chatbot. It is a long-running backend service with:
 | `docs/ARCHITECTURE.md` | Components, data flow, LangGraph graph design |
 | `docs/DATA_MODEL.md` | Every table, column, and index — the schema is locked |
 | `docs/TOOLS_SPEC.md` | Every tool the agent can call, with schemas + permission tiers |
-| `docs/PERSONA.md` | JARVIS system prompt + tone rules |
+| `docs/PERSONA.md` | SENTRY system prompt + tone rules |
 | `docs/ROADMAP.md` | Phases, tasks, acceptance criteria — **work only on the current phase** |
 | `docs/CONVENTIONS.md` | Code style, testing, logging, git rules |
 | `docs/USER_PROFILE.md` | My actual routine, preferences, timezone (filled by me) |
@@ -75,24 +75,26 @@ uv sync                          # or: pip install -r requirements.txt
 alembic upgrade head
 
 # run
-uv run python -m jarvis.main             # starts API + scheduler + telegram bot
-uv run python -m jarvis.cli "plan my day" # one-shot CLI for dev
+uv run python -m sentry_ai.main             # starts API + scheduler + telegram bot
+uv run python -m sentry_ai.cli "plan my day" # one-shot CLI for dev
 
 # quality
 uv run pytest -q
 uv run ruff check . && uv run ruff format --check .
-uv run mypy jarvis
+uv run mypy sentry_ai
 ```
 
 If a command here is wrong or missing, fix this section in the same commit.
 
 ## 6. Repo layout (target)
 
+Python package is `sentry_ai` (not `sentry`, which would clash with the Sentry SDK).
+
 ```
-jarvis/
+SENTRY/                      # project root
 ├── CLAUDE.md
 ├── docs/                    # all context docs (do not delete)
-├── jarvis/
+├── sentry_ai/
 │   ├── main.py              # boots FastAPI + scheduler + telegram
 │   ├── cli.py               # dev entry point
 │   ├── config.py            # pydantic-settings, reads .env
@@ -115,7 +117,7 @@ jarvis/
 
 ## 7. Hard rules (never break these)
 
-1. **Never hardcode secrets or model names.** Everything from `jarvis/config.py` → `.env`.
+1. **Never hardcode secrets or model names.** Everything from `sentry_ai/config.py` → `.env`.
 2. **Never commit `.env`**, tokens, `credentials.json`, or `token.json`.
 3. **All datetimes are timezone-aware.** Store UTC, convert to `USER_TZ` only for display/parsing.
 4. **Every tool has a Pydantic input schema and a permission tier** (`read` / `write` / `destructive`). Destructive tools must go through the confirmation flow in `docs/TOOLS_SPEC.md`.

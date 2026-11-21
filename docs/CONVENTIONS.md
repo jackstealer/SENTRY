@@ -1,8 +1,8 @@
-# Conventions — JARVIS
+# Conventions — SENTRY
 
 ## 1. Python style
 
-- Python 3.11+, full type hints, `mypy --strict` on `jarvis/`.
+- Python 3.11+, full type hints, `mypy --strict` on `sentry_ai/`.
 - Formatter + linter: `ruff format`, `ruff check` (rules: E, F, I, B, UP, ASYNC, SIM, RUF).
 - Async everywhere on I/O paths (DB, HTTP, OpenAI, Telegram). No blocking calls inside the event loop — wrap sync libraries (Google API client) with `asyncio.to_thread`.
 - Pydantic v2 for every boundary: tool inputs, DTOs, config, LLM structured outputs.
@@ -39,7 +39,7 @@
 - `pytest` + `pytest-asyncio` (auto mode) + `time-machine` + `hypothesis` (planner).
 - Test DB: real Postgres (docker), each test in a transaction rolled back at the end. No SQLite substitutes — pgvector/pg_trgm must be real.
 - LLM is **mocked** in unit tests (fake client returning canned tool calls). Real-API checks live in `tests/evals/` and run via `scripts/run_evals.py`, not default `pytest`.
-- Layout mirrors source: `tests/tools/test_tasks.py` ↔ `jarvis/tools/tasks.py`.
+- Layout mirrors source: `tests/tools/test_tasks.py` ↔ `sentry_ai/tools/tasks.py`.
 - Coverage target: ≥ 80% for `services/` and `tools/`.
 
 ## 6. Database

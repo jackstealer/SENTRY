@@ -1,4 +1,4 @@
-# Data Model — JARVIS
+# Data Model — SENTRY
 
 PostgreSQL 16 + pgvector. All tables managed with **Alembic** migrations.
 All timestamps are `TIMESTAMPTZ` stored in UTC. Local dates (a "day" in the
@@ -111,7 +111,7 @@ plan_blocks (
   kind TEXT NOT NULL CHECK (kind IN ('routine','task','habit','calendar_event','break','buffer')),
   ref_id BIGINT NULL,                         -- id in routines/tasks/habits (by kind)
   title TEXT NOT NULL,
-  gcal_event_id TEXT NULL,                    -- set after writing to JARVIS calendar
+  gcal_event_id TEXT NULL,                    -- set after writing to SENTRY calendar
   outcome TEXT NULL CHECK (outcome IN ('done','partial','skipped','moved'))
 )
 ```
@@ -148,7 +148,7 @@ calendar_events (
   start_at TIMESTAMPTZ NOT NULL,
   end_at TIMESTAMPTZ NOT NULL,
   all_day BOOLEAN NOT NULL DEFAULT false,
-  is_jarvis_owned BOOLEAN NOT NULL DEFAULT false,
+  is_sentry_owned BOOLEAN NOT NULL DEFAULT false,
   synced_at TIMESTAMPTZ NOT NULL,
   UNIQUE (user_id, calendar_id, gcal_event_id)
 )
@@ -234,12 +234,12 @@ llm_usage (
 
 ## 9. Repository layer
 
-One repository class per aggregate in `jarvis/db/repositories/`:
+One repository class per aggregate in `sentry_ai/db/repositories/`:
 `RoutineRepo`, `TaskRepo`, `HabitRepo`, `PlanRepo`, `ReminderRepo`,
 `CalendarRepo`, `MemoryRepo`, `PreferenceRepo`, `SystemRepo`.
 
 - Repos take an `AsyncSession`, return Pydantic DTOs (not ORM objects) to callers.
-- No business logic in repos. Business logic lives in `jarvis/services/`
+- No business logic in repos. Business logic lives in `sentry_ai/services/`
   (e.g. `ReminderService` keeps DB row and APScheduler job in sync).
 
 ## 10. Activity Intelligence (Phase 7)

@@ -1,11 +1,11 @@
-# Tools Spec — JARVIS
+# Tools Spec — SENTRY
 
 Tools are the **only** way the LLM affects the world. Each tool:
-- lives in `jarvis/tools/<group>.py`,
+- lives in `sentry_ai/tools/<group>.py`,
 - has a Pydantic v2 input model (becomes the OpenAI function JSON schema),
 - returns a `ToolResult` (`ok: bool`, `data: dict`, `message: str` short human summary, `error: str | None`),
 - declares a `tier`: `read` | `write` | `destructive`,
-- is registered in `jarvis/tools/registry.py`,
+- is registered in `sentry_ai/tools/registry.py`,
 - is async, logged, and unit-tested.
 
 ## 1. Base interface
@@ -97,7 +97,7 @@ resolved by the LLM into **ISO 8601 with offset** in tool args, using
 | Tool | Tier | Input | Notes |
 |---|---|---|---|
 | `propose_day_plan` | write | `date`, `available_windows?`, `focus?` | Deterministic scheduler in `services/planner.py` places tasks/habits into free slots respecting hard preferences; LLM only chooses ordering/priorities. Saves as `draft`. |
-| `confirm_day_plan` | write | `plan_id`, `sync_to_calendar=true` | Marks confirmed, supersedes older, creates reminders, writes blocks to JARVIS calendar |
+| `confirm_day_plan` | write | `plan_id`, `sync_to_calendar=true` | Marks confirmed, supersedes older, creates reminders, writes blocks to SENTRY calendar |
 | `move_block` | write | `block_id`, `new_start` | reschedules reminder + gcal event |
 
 **Planner split:** the LLM decides *what matters today*; `planner.py` (pure
@@ -116,8 +116,8 @@ timestamps for a whole plan — it hallucinates overlaps.
 | Tool | Tier | Notes |
 |---|---|---|
 | `get_calendar_events` | read | from cache, `start`, `end` |
-| `create_calendar_block` | write | JARVIS calendar only |
-| `delete_calendar_block` | destructive | JARVIS calendar only; never touches other calendars |
+| `create_calendar_block` | write | SENTRY calendar only |
+| `delete_calendar_block` | destructive | SENTRY calendar only; never touches other calendars |
 
 ### Memory & preferences
 | Tool | Tier | Input |

@@ -1,4 +1,4 @@
-# Architecture — JARVIS
+# Architecture — SENTRY
 
 ## 1. High-level view
 
@@ -49,7 +49,7 @@ rules are identical.
 
 ## 2. Process model
 
-One Python process (`jarvis.main`) running an asyncio loop that hosts:
+One Python process (`sentry_ai.main`) running an asyncio loop that hosts:
 - FastAPI app (Uvicorn) — health check, dev endpoints, later the dashboard API
 - APScheduler `AsyncIOScheduler`
 - Telegram bot (long polling in dev; webhook via FastAPI in prod)
@@ -83,7 +83,7 @@ class AgentState(TypedDict):
 | `act` | REASONING model (FAST for `capture`/`checkin`) | Tool-calling LLM step with the tool subset allowed for the intent |
 | `tools` | none | Executes tool calls via registry, validates input, enforces permission tier |
 | `confirm` | none | If a tool requires confirmation → store `pending_confirmation`, ask user, END. Next user reply resumes from checkpoint |
-| `respond` | none / FAST | Format final reply in JARVIS persona (short, Telegram-friendly) |
+| `respond` | none / FAST | Format final reply in SENTRY persona (short, Telegram-friendly) |
 | `persist` | none | Write episodic log, enqueue memory extraction (async, non-blocking) |
 
 ### Edges
@@ -161,7 +161,7 @@ Rules:
 ## 7. Interfaces
 
 - **Telegram**: only accept messages from `TELEGRAM_ALLOWED_CHAT_ID` (drop everything else silently, log it). Commands: `/today`, `/plan`, `/tasks`, `/habits`, `/review`, `/pause` (mute proactive msgs for N hours), `/help`. Free text goes to the agent. Use inline buttons for confirmations and reminder actions (Done / Snooze 15 / Skip).
-- **CLI**: `python -m jarvis.cli "<message>"` — same agent, prints reply. For dev/testing.
+- **CLI**: `python -m sentry_ai.cli "<message>"` — same agent, prints reply. For dev/testing.
 - **FastAPI**: `/health`, `/debug/trigger/{job}` (dev only, behind `ENV=dev`), Telegram webhook route (prod), dashboard API (Phase 7).
 
 ## 8. Memory

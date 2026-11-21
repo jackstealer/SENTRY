@@ -9,7 +9,7 @@ description: Start (or continue) the current roadmap phase
    - what you'll build (3–5 bullets),
    - files you'll create/modify,
    - any decision you need from me (only if hard to undo).
-5. Build it, write tests, run `pytest -q`, `ruff check .`, `mypy jarvis`.
+5. Build it, write tests, run `pytest -q`, `ruff check .`, `mypy sentry_ai`.
 6. Tick the task in `docs/ROADMAP.md`, then give me a short summary:
    files changed, how to run/test, anything I must do manually.
 7. Stop after one task unless I said "keep going". $ARGUMENTS
