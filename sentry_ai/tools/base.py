@@ -1,5 +1,6 @@
 """Tool building blocks (TOOLS_SPEC section 1). Tools are the only way the LLM changes anything."""
 
+import dataclasses
 import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -123,6 +124,8 @@ def to_data(value: Any) -> Any:
     """JSON-safe tool output; datetimes are shown in USER_TZ so the LLM never converts from UTC."""
     if isinstance(value, BaseModel):
         return to_data(value.model_dump())
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return to_data(dataclasses.asdict(value))
     if isinstance(value, dict):
         return {str(k): to_data(v) for k, v in value.items()}
     if isinstance(value, list | tuple | set | frozenset):
