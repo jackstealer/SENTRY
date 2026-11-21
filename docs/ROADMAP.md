@@ -88,11 +88,11 @@ Tasks
 - [x] 1.9 Test fixtures: ephemeral test DB (transaction rollback per test)
 
 Acceptance
-- [ ] Migration up/down works cleanly
-- [ ] Seeding from USER_PROFILE creates my routines, habits, preferences
-- [ ] `services.routines.expand(date)` returns correct blocks for a weekday and a weekend
-- [ ] Streak tests pass for edge cases (gap days, skipped vs missed, week habits)
-- [ ] Timezone tests: an event at 00:30 IST lands on the correct local date
+- [x] Migration up/down works cleanly
+- [x] Seeding from USER_PROFILE creates my routines, habits, preferences
+- [x] `services.routines.expand(date)` returns correct blocks for a weekday and a weekend
+- [x] Streak tests pass for edge cases (gap days, skipped vs missed, week habits)
+- [x] Timezone tests: an event at 00:30 IST lands on the correct local date
 
 ---
 
