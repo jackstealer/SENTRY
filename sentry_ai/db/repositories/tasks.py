@@ -28,15 +28,21 @@ class TaskRepo(Repo):
         *,
         status: Sequence[TaskStatus] | None = None,
         due_before: datetime | None = None,
+        due_after: datetime | None = None,
         project: str | None = None,
         limit: int = 20,
     ) -> list[TaskDTO]:
-        """Active tasks, most urgent first: priority, then earliest due date (undated last)."""
+        """Active tasks, most urgent first: priority, then earliest due date (undated last).
+
+        Due filters are [due_after, due_before) and leave out undated tasks.
+        """
         stmt = sa.select(Task).where(self._mine(), Task.archived_at.is_(None))
         if status:
             stmt = stmt.where(Task.status.in_(status))
         if due_before is not None:
             stmt = stmt.where(Task.due_at < due_before)
+        if due_after is not None:
+            stmt = stmt.where(Task.due_at >= due_after)
         if project:
             stmt = stmt.where(sa.func.lower(Task.project) == project.strip().lower())
         stmt = stmt.order_by(Task.priority, Task.due_at.asc().nulls_last(), Task.id).limit(limit)
@@ -88,15 +94,23 @@ class TaskRepo(Repo):
             for task, similarity in rows
         ]
 
+    def _done_before(self, before: datetime) -> ColumnElement[bool]:
+        return sa.and_(
+            self._mine(),
+            Task.status == "done",
+            Task.completed_at < before,
+            Task.archived_at.is_(None),
+        )
+
+    async def count_done_before(self, before: datetime) -> int:
+        """How many tasks archive_done_before would archive (for its confirmation)."""
+        stmt = sa.select(sa.func.count()).select_from(Task).where(self._done_before(before))
+        return int(await self.session.scalar(stmt) or 0)
+
     async def archive_done_before(self, before: datetime) -> int:
         stmt = (
             sa.update(Task)
-            .where(
-                self._mine(),
-                Task.status == "done",
-                Task.completed_at < before,
-                Task.archived_at.is_(None),
-            )
+            .where(self._done_before(before))
             .values(archived_at=sa.func.now())
             .returning(Task.id)
             .execution_options(**NO_SYNC)

@@ -55,6 +55,7 @@ async def test_due_before_respects_the_ist_day_boundary(repo: TaskRepo) -> None:
         TaskCreate(title="00:30 IST", due_at=datetime(2026, 11, 22, 0, 30, tzinfo=IST))
     )
     assert [t.title for t in await repo.query(due_before=end_of_day)] == ["23:50 IST"]
+    assert [t.title for t in await repo.query(due_after=end_of_day)] == ["00:30 IST"]
 
 
 async def test_update_and_scoping(repo: TaskRepo, session: AsyncSession) -> None:
@@ -110,6 +111,9 @@ async def test_archive_done_before(repo: TaskRepo) -> None:
     await repo.set_status(old.id, "done", datetime(2026, 10, 1, tzinfo=UTC))
     await repo.set_status(recent.id, "done", datetime(2026, 11, 20, tzinfo=UTC))
 
+    assert await repo.count_done_before(datetime(2026, 11, 1, tzinfo=UTC)) == 1
+    assert await repo.count_done_before(datetime(2026, 12, 1, tzinfo=UTC)) == 2
     assert await repo.archive_done_before(datetime(2026, 11, 1, tzinfo=UTC)) == 1
+    assert await repo.count_done_before(datetime(2026, 11, 1, tzinfo=UTC)) == 0
     assert await repo.archive_done_before(datetime(2026, 11, 1, tzinfo=UTC)) == 0
     assert {t.title for t in await repo.query()} == {"recent done", "still todo"}
