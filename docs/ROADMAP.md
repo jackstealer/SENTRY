@@ -23,7 +23,7 @@ Tasks
 - [x] 0.6 Alembic set up (async), first migration: `CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;`
 - [x] 0.7 structlog JSON logging with `trace_id` contextvar (`sentry_ai/observability/logging.py`)
 - [x] 0.8 FastAPI app with `/health` (checks DB connectivity)
-- [ ] 0.9 `sentry_ai/main.py` boots FastAPI via Uvicorn programmatically
+- [x] 0.9 `sentry_ai/main.py` boots FastAPI via Uvicorn programmatically
 - [ ] 0.10 OpenAI client wrapper (`sentry_ai/agent/llm.py`): one function per purpose, logs tokens/latency, reads model names from config
 - [ ] 0.11 Smoke test: `tests/test_smoke.py` — config loads, DB reachable, one cheap LLM call (skipped if no API key)
 - [ ] 0.12 `README.md` setup steps verified from a clean clone
@@ -35,6 +35,8 @@ USER_ID=me
 USER_NAME=
 USER_TZ=Asia/Kolkata
 DATABASE_URL=postgresql+asyncpg://sentry:sentry@127.0.0.1:5432/sentry
+API_HOST=127.0.0.1
+API_PORT=8000
 OPENAI_API_KEY=
 OPENAI_MODEL_REASONING=
 OPENAI_MODEL_FAST=

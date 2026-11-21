@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     user_name: str = ""
     user_tz: str = "Asia/Kolkata"
     database_url: str = "postgresql+asyncpg://sentry:sentry@127.0.0.1:5432/sentry"
+    api_host: str = "127.0.0.1"  # 0.0.0.0 inside Docker (Phase 14)
+    api_port: int = 8000
 
     openai_api_key: SecretStr | None = None
     openai_model_reasoning: str = ""
