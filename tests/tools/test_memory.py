@@ -162,3 +162,11 @@ async def test_forget_by_id_ignores_other_users_memories(call, session: AsyncSes
     result = await call("forget", memory_id=theirs.id, confirmed=True)
     assert result.error == "not_found"
     assert await MemoryRepo(session, "someone-else").get(theirs.id) is not None
+
+
+async def test_get_preferences_shows_the_latest_value_after_an_update(call):
+    await call("set_preference", key="quiet_hours", value={"start": "23:30", "end": "06:30"})
+    await call("set_preference", key="quiet_hours", value={"start": "00:00", "end": "07:00"})
+    result = await call("get_preferences")
+    assert result.data["preferences"] == {"quiet_hours": {"start": "00:00", "end": "07:00"}}
+    assert result.message == "1 preference(s) set."
