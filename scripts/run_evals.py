@@ -44,6 +44,7 @@ from sentry_ai.agent.evals import (
     score_turn,
 )
 from sentry_ai.agent.graph import Graph, build_graph, run_turn, thread_id
+from sentry_ai.cli import utf8_output
 from sentry_ai.config import Settings, get_settings
 from sentry_ai.db.models import Habit
 from sentry_ai.db.repositories import (
@@ -240,6 +241,7 @@ def report(runs: list[CaseRun], verbose: bool) -> bool:
 
 
 async def main(args: argparse.Namespace) -> int:
+    utf8_output()  # replies contain emoji; a redirected Windows stdout is cp1252
     use_test_database()
     await asyncio.to_thread(migrate)
     usage: list[LLMUsageCreate] = []
