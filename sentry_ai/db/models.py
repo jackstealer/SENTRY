@@ -29,6 +29,18 @@ from sentry_ai.db import enums
 
 EMBEDDING_DIMS = 1536  # = OPENAI_EMBEDDING_DIMS; changing it needs a migration and a re-embed
 
+# tables other libraries create and manage in our database; Alembic must leave them alone
+NOT_OURS = frozenset(
+    {"checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations",  # LangGraph
+     "apscheduler_jobs"}  # APScheduler job store (Phase 4)
+)  # fmt: skip
+
+
+def include_name(name: str | None, type_: str, parent_names: object) -> bool:
+    """Alembic filter: compare and autogenerate only SENTRY's own tables."""
+    return not (type_ == "table" and name in NOT_OURS)
+
+
 NAMING_CONVENTION = {
     "ix": "ix_%(table_name)s_%(column_0_N_name)s",
     "uq": "uq_%(table_name)s_%(column_0_N_name)s",

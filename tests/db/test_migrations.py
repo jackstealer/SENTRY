@@ -8,7 +8,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from sentry_ai.db.models import Base
+from sentry_ai.db.models import NOT_OURS, Base, include_name
 
 PHASE_1_TABLES = set(Base.metadata.tables)
 
@@ -26,7 +26,7 @@ async def _tables(engine: AsyncEngine) -> set[str]:
         rows = await conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         )
-        return {row[0] for row in rows} - {"alembic_version"}
+        return {row[0] for row in rows} - {"alembic_version"} - NOT_OURS
 
 
 async def _revision(engine: AsyncEngine) -> str | None:
@@ -58,7 +58,10 @@ async def test_head_has_extensions_and_every_phase_1_table(
 async def test_models_match_migrations(engine: AsyncEngine) -> None:
     async with engine.connect() as conn:
         diff = await conn.run_sync(
-            lambda sync: compare_metadata(MigrationContext.configure(sync), Base.metadata)
+            lambda sync: compare_metadata(
+                MigrationContext.configure(sync, opts={"include_name": include_name}),
+                Base.metadata,
+            )
         )
     assert diff == []
 

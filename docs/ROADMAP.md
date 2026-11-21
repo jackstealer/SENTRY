@@ -129,7 +129,7 @@ Tasks
 - [x] 3.1 `agent/state.py` — `AgentState` per ARCHITECTURE §3
 - [x] 3.2 `agent/prompts/` — system prompt from PERSONA.md, route prompt; rendered with Jinja2
 - [x] 3.3 Nodes: `load_context`, `route` (structured output), `act`, `tools`, `confirm`, `respond`, `persist`
-- [ ] 3.4 Graph wiring + Postgres checkpointer, thread per (user, local date)
+- [x] 3.4 Graph wiring + Postgres checkpointer, thread per (user, local date)
 - [ ] 3.5 Loop guard (6 tool iterations), message trimming
 - [x] 3.6 `llm_usage` recording on every call
 - [ ] 3.7 `sentry_ai/cli.py` — one-shot + interactive REPL mode (`--repl`)

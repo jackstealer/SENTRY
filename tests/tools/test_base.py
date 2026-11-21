@@ -71,7 +71,7 @@ def test_tool_args_forbid_unknown_keys_and_strip_strings() -> None:
         Args.model_validate({"title": "x", "titel": "y"})
 
 
-def test_context_converts_now_to_user_tz_and_rejects_naive(session: AsyncSession) -> None:
+async def test_context_converts_now_to_user_tz_and_rejects_naive(session: AsyncSession) -> None:
     ctx = ToolContext(
         user_id="u", trace_id="t", now=datetime(2026, 11, 22, 18, 20, tzinfo=UTC), session=session
     )

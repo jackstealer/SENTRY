@@ -70,6 +70,7 @@ class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     context: dict                    # today's snapshot: blocks, tasks, habits, now (IST)
     memories: list[dict]             # retrieved semantic memories
+    intent: str | None               # set by `route` for this turn
     pending_confirmation: dict | None
     tool_calls_count: int            # loop guard
     final_response: str | None
@@ -82,17 +83,20 @@ class AgentState(TypedDict):
 | `route` | FAST model | Classify intent: `smalltalk`, `capture` (task/habit/reminder), `query` (what's on…), `plan`, `checkin` (done/snooze/skip), `review`, `preference`, `manage` (edit/delete existing items), `other`. Cheap + structured output. |
 | `act` | REASONING model (FAST for `capture`/`checkin`) | Tool-calling LLM step with the tool subset allowed for the intent |
 | `tools` | none | Executes tool calls via registry, validates input, enforces permission tier |
-| `confirm` | none | If a tool requires confirmation → store `pending_confirmation`, ask user, END. Next user reply resumes from checkpoint |
+| `confirm` | none | If a tool requires confirmation → store `pending_confirmation`, ask user, end the turn. Next user reply resumes from checkpoint |
+| `run_pending` | none | `route` saw a timely "yes" to the pending confirmation → run that call with `confirmed=True` |
 | `respond` | none / FAST | Format final reply in SENTRY persona (short, Telegram-friendly) |
 | `persist` | none | Write episodic log, enqueue memory extraction (async, non-blocking) |
 
 ### Edges
 ```
 START → load_context → route
+route ──(confirmation pending + "yes")──► run_pending → respond
 route → act
-act ──(has tool_calls)──► tools ──► act        (loop, max 6 iterations)
-act ──(needs confirmation)──► confirm ──► END
+act ──(has tool_calls)──► tools ──► act        (loop, max 6 tool rounds)
+tools ──(needs confirmation)──► confirm → persist → END
 act ──(no tool_calls)──► respond → persist → END
+tools ──(6th round done)──► respond             (loop guard: summarise what was done)
 ```
 
 ### Checkpointing

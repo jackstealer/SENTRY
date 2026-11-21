@@ -4,6 +4,7 @@ import asyncio
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -42,6 +43,12 @@ async def _create_database_if_missing(url: str) -> None:
                 await conn.execute(text(f'CREATE DATABASE "{target.database}"'))
     finally:
         await admin.dispose()
+
+
+def pytest_asyncio_loop_factories(config: pytest.Config, item: pytest.Item) -> dict[str, Any]:
+    # psycopg (LangGraph's Postgres checkpointer) cannot run on Windows' default Proactor
+    # loop; the selector loop is the default everywhere else anyway
+    return {"selector": asyncio.SelectorEventLoop}
 
 
 @pytest.fixture(scope="session")
