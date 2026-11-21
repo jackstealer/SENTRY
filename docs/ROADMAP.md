@@ -113,10 +113,10 @@ Tasks
 - [x] 2.10 Tests per `TOOLS_SPEC.md` §6
 
 Acceptance
-- [ ] Every tool has ≥ 3 tests; all pass
-- [ ] Planner never produces overlapping blocks or blocks in quiet hours (property-based test with `hypothesis`)
-- [ ] Destructive tools refuse to run without `confirmed=True`
-- [ ] `registry.openai_schemas(intent)` returns valid OpenAI tool definitions
+- [x] Every tool has ≥ 3 tests; all pass
+- [x] Planner never produces overlapping blocks or blocks in quiet hours (property-based test with `hypothesis`)
+- [x] Destructive tools refuse to run without `confirmed=True`
+- [x] `registry.openai_schemas(intent)` returns valid OpenAI tool definitions
 
 ---
 
