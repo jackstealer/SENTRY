@@ -107,7 +107,7 @@ Tasks
 - [ ] 2.4 Query tools
 - [x] 2.5 Task tools (incl. `find_task` with pg_trgm similarity)
 - [x] 2.6 Habit + routine tools
-- [ ] 2.7 Memory + preference tools (embeddings via llm wrapper)
+- [x] 2.7 Memory + preference tools (embeddings via llm wrapper)
 - [ ] 2.8 `services/planner.py`: deterministic slot-filling (fixed blocks → hard prefs → priority/due ordering → buffers) + `propose_day_plan`, `confirm_day_plan`, `move_block`
 - [ ] 2.9 Reminder tools (DB only in this phase; scheduler hookup in Phase 4 — leave a `ReminderScheduler` interface with a no-op impl)
 - [ ] 2.10 Tests per `TOOLS_SPEC.md` §6

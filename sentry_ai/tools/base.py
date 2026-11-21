@@ -66,7 +66,8 @@ class ToolContext(BaseModel):
 
 
 Run = Callable[[Any, ToolContext], Awaitable[ToolResult]]
-Preview = Callable[[Any, ToolContext], Awaitable[str]]
+# a preview returns the confirmation summary, or a failed ToolResult when there is nothing to do
+Preview = Callable[[Any, ToolContext], Awaitable["str | ToolResult"]]
 
 
 @dataclass(frozen=True)

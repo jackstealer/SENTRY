@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from sentry_ai.agent.llm import LLMNotConfiguredError
 from sentry_ai.observability.logging import get_logger
 from sentry_ai.tools.base import Tool, ToolContext, ToolResult, ToolTier, fail
 from sentry_ai.tools.registry import TOOLS
@@ -60,6 +61,8 @@ async def _run(tool: Tool, args: BaseModel, ctx: ToolContext) -> ToolResult:
             result = await tool.run(args, ctx)
     except ValidationError as exc:  # a DTO built inside the tool rejected the input
         result = fail("invalid_args", explain(exc))
+    except LLMNotConfiguredError as exc:
+        result = fail("not_configured", f"{exc}: add it to .env to use this.")
     except Exception:
         log.exception("tool_failed", trace_id=ctx.trace_id, tool=tool.name)
         result = fail("internal_error", f"Something went wrong (trace {ctx.trace_id}).")
@@ -74,6 +77,8 @@ async def _ask_first(tool: Tool, args: BaseModel, ctx: ToolContext) -> ToolResul
     if tool.preview is None:  # tool() refuses to build such a tool; kept for type narrowing
         raise TypeError(f"{tool.name} is destructive but has no preview")
     summary = await tool.preview(args, ctx)
+    if isinstance(summary, ToolResult):
+        return summary
     return fail(
         "confirmation_required",
         f"{summary} Proceed?",
