@@ -36,6 +36,17 @@ uv run python -m sentry_ai.main
 Then open <http://localhost:8000/health>. You should see `{"status":"ok","db":"ok"}`, or
 HTTP 503 with `"db":"error"` if Postgres is down. Logs are JSON lines with a `trace_id`.
 
+Talk to the agent from a terminal (needs the OpenAI key and model names in `.env`):
+
+```bash
+uv run python -m sentry_ai.cli "what's on today"   # one turn
+uv run python -m sentry_ai.cli --repl              # chat; "exit" to leave
+uv run python -m sentry_ai.cli -v --repl           # plus the full JSON trace on stderr
+```
+
+Every reply ends with `[trace <id>]`; search the logs for that id to see the route, the
+tool calls and the LLM usage of the turn.
+
 ## Test and lint
 
 ```bash

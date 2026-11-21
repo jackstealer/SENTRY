@@ -132,7 +132,7 @@ Tasks
 - [x] 3.4 Graph wiring + Postgres checkpointer, thread per (user, local date)
 - [x] 3.5 Loop guard (6 tool iterations), message trimming
 - [x] 3.6 `llm_usage` recording on every call
-- [ ] 3.7 `sentry_ai/cli.py` — one-shot + interactive REPL mode (`--repl`)
+- [x] 3.7 `sentry_ai/cli.py` — one-shot + interactive REPL mode (`--repl`)
 - [ ] 3.8 Eval set `tests/evals/agent_cases.yaml`: ≥ 30 utterances with expected intent + expected tool calls (e.g. "remind me to submit SE assignment friday 5pm" → capture → create_task with due_at Fri 17:00 IST)
 - [ ] 3.9 `scripts/run_evals.py` — runs cases against real API, prints pass rate (not part of default pytest)
 - [x] 3.10 Model fallback in `agent/llm.py`: retry with backoff, then try models from `OPENAI_MODEL_FALLBACKS`; log each fallback (pattern from GYAN1, see REFERENCE_GYAN1.md)

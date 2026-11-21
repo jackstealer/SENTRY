@@ -77,7 +77,7 @@ uv run pre-commit install       # ruff + mypy on every commit
 
 # run
 uv run python -m sentry_ai.main             # API now; + scheduler (P4) + telegram bot (P5)
-uv run python -m sentry_ai.cli "plan my day" # one-shot CLI for dev (from Phase 3)
+uv run python -m sentry_ai.cli "plan my day" # one-shot CLI for dev; --repl to chat, -v for logs
 
 # quality
 uv run pytest -q

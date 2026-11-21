@@ -3,6 +3,7 @@
 import logging
 import sys
 import uuid
+from typing import TextIO
 
 import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars, merge_contextvars
@@ -26,8 +27,8 @@ _SHARED: list[Processor] = [
 ]
 
 
-def configure_logging(level: str = "INFO") -> None:
-    """Call once at process start, before anything logs."""
+def configure_logging(level: str = "INFO", stream: TextIO | None = None) -> None:
+    """Call once at process start, before anything logs. The CLI logs to stderr."""
     structlog.configure(
         processors=[*_SHARED, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -35,7 +36,7 @@ def configure_logging(level: str = "INFO") -> None:
         # off: cached loggers would bypass structlog.testing.capture_logs in tests
         cache_logger_on_first_use=False,
     )
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(stream or sys.stdout)  # looked up now, not at import
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
             foreign_pre_chain=_SHARED,
