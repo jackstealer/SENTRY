@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, WithJsonSchema, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentry_ai.agent import llm
@@ -21,6 +21,16 @@ from sentry_ai.services.reminders import (
 from sentry_ai.services.time import local_date_of, to_local
 
 Embedder = Callable[[list[str]], Awaitable[list[list[float]]]]
+
+# A local wall-clock time in tool arguments. Advertised as an "HH:MM" string on purpose: the
+# JSON-schema `format: time` that pydantic emits means RFC 3339 "HH:MM:SS+offset", and
+# providers that validate tool calls (Groq) reject the "21:00" every model actually sends.
+LocalTime = Annotated[
+    time,
+    WithJsonSchema(
+        {"type": "string", "pattern": r"^([01]\d|2[0-3]):[0-5]\d$", "description": "local HH:MM"}
+    ),
+]
 
 
 class ToolTier(StrEnum):

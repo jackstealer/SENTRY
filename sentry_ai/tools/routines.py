@@ -1,13 +1,21 @@
 """Routine tools: recurring blocks like classes or gym (TOOLS_SPEC section 4, Routines)."""
 
-from datetime import time
 from typing import Any
 
 from pydantic import Field
 
 from sentry_ai.db.repositories import RoutineRepo
 from sentry_ai.db.schemas import RoutineCreate, RoutineDTO, RoutineUpdate
-from sentry_ai.tools.base import ToolArgs, ToolContext, ToolResult, ToolTier, fail, ok, tool
+from sentry_ai.tools.base import (
+    LocalTime,
+    ToolArgs,
+    ToolContext,
+    ToolResult,
+    ToolTier,
+    fail,
+    ok,
+    tool,
+)
 from sentry_ai.tools.habits import HHMM, RRULE
 
 
@@ -17,7 +25,7 @@ def view(routine: RoutineDTO) -> dict[str, Any]:
 
 class CreateRoutineArgs(RoutineCreate):
     rrule: str = Field(description=RRULE)
-    start_time: time = Field(description=HHMM)
+    start_time: LocalTime = Field(description=HHMM)
     is_fixed: bool = Field(
         default=True, description="false lets the planner shift it (e.g. lunch); true never"
     )
@@ -41,7 +49,7 @@ async def create_routine(args: CreateRoutineArgs, ctx: ToolContext) -> ToolResul
 class UpdateRoutineArgs(RoutineUpdate):
     routine_id: int
     rrule: str | None = Field(default=None, description=RRULE)
-    start_time: time | None = Field(default=None, description=HHMM)
+    start_time: LocalTime | None = Field(default=None, description=HHMM)
 
 
 @tool(ToolTier.WRITE, UpdateRoutineArgs)

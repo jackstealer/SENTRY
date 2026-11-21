@@ -1,7 +1,7 @@
 """Planning tools: the LLM decides what matters; services/planner.py decides where it fits."""
 
 import datetime as dt
-from datetime import time, timedelta
+from datetime import timedelta
 from typing import Any
 
 from pydantic import AwareDatetime, Field, model_validator
@@ -18,7 +18,16 @@ from sentry_ai.services.intervals import Interval, daily
 from sentry_ai.services.planner import Prefs, check_slot, hhmm, plan_day
 from sentry_ai.services.planner_inputs import gather
 from sentry_ai.services.time import day_bounds_utc
-from sentry_ai.tools.base import ToolArgs, ToolContext, ToolResult, ToolTier, fail, ok, tool
+from sentry_ai.tools.base import (
+    LocalTime,
+    ToolArgs,
+    ToolContext,
+    ToolResult,
+    ToolTier,
+    fail,
+    ok,
+    tool,
+)
 from sentry_ai.tools.habits import HHMM
 from sentry_ai.tools.tasks import WHEN
 
@@ -30,8 +39,8 @@ def view(block: PlanBlockDTO) -> dict[str, Any]:
 
 
 class Window(ToolArgs):
-    start: time = Field(description=HHMM)
-    end: time = Field(description=HHMM)
+    start: LocalTime = Field(description=HHMM)
+    end: LocalTime = Field(description=HHMM)
 
     @model_validator(mode="after")
     def _not_empty(self) -> "Window":

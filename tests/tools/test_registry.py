@@ -156,3 +156,12 @@ async def test_every_tool_rejects_unknown_arguments(call: Any, name: str) -> Non
     result = await call(name, confirmed=True, unexpected_argument=1)
     assert (result.ok, result.error) == (False, "invalid_args")
     assert "unexpected_argument" in result.message
+
+
+def test_no_tool_advertises_a_strict_time_format() -> None:
+    """`format: time` means "HH:MM:SS+offset"; providers that validate tool calls (Groq)
+    then reject the "21:00" every model sends. Times are advertised as HH:MM strings."""
+    for name, t in registry.TOOLS.items():
+        assert '"format": "time"' not in json.dumps(t.input_model.model_json_schema()), name
+    window = registry.TOOLS["propose_day_plan"].input_model.model_json_schema()["$defs"]["Window"]
+    assert window["properties"]["start"]["pattern"] == r"^([01]\d|2[0-3]):[0-5]\d$"

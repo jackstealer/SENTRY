@@ -54,6 +54,8 @@ INTENTS: dict[Intent, tuple[str, ...]] = {
         "find_task",
         "list_tasks",
         "update_task",
+        "complete_task",
+        "skip_task",
         "get_habits_status",
         "update_habit",
         "list_routines",

@@ -177,7 +177,7 @@ minutes are `overcommitted_by_min`. `confirm_day_plan` reminds `default_reminder
 | plan | get_today_overview, get_free_slots, list_tasks, propose_day_plan, confirm_day_plan, move_block |
 | review | get_stats, get_habits_status, list_tasks, update_task, recall |
 | preference | set_preference, get_preferences, remember, recall, forget |
-| manage | find_task, list_tasks, update_task, get_habits_status, update_habit, list_routines, update_routine, cancel_reminder, archive_tasks, delete_habit, delete_routine |
+| manage | find_task, list_tasks, update_task, complete_task, skip_task, get_habits_status, update_habit, list_routines, update_routine, cancel_reminder, archive_tasks, delete_habit, delete_routine |
 | smalltalk | recall |
 | other | all read tools |
 

@@ -1,7 +1,6 @@
 """Habit tools (TOOLS_SPEC section 4, Habits). Status/streak reads live in query.py."""
 
 import datetime as dt
-from datetime import time
 from typing import Any, Literal
 
 from pydantic import Field, model_validator
@@ -9,7 +8,16 @@ from pydantic import Field, model_validator
 from sentry_ai.db.repositories import HabitRepo
 from sentry_ai.db.schemas import HabitCreate, HabitDTO, HabitUpdate
 from sentry_ai.services.streaks import compute_streak
-from sentry_ai.tools.base import ToolArgs, ToolContext, ToolResult, ToolTier, fail, ok, tool
+from sentry_ai.tools.base import (
+    LocalTime,
+    ToolArgs,
+    ToolContext,
+    ToolResult,
+    ToolTier,
+    fail,
+    ok,
+    tool,
+)
 
 RRULE = 'RFC 5545 RRULE body, local time, e.g. "FREQ=DAILY" or "FREQ=WEEKLY;BYDAY=MO,WE,FR"'
 HHMM = 'local time "HH:MM", 24-hour'
@@ -21,7 +29,7 @@ def view(habit: HabitDTO) -> dict[str, Any]:
 
 class CreateHabitArgs(HabitCreate):
     rrule: str = Field(description=RRULE + " (the days it is due)")
-    preferred_time: time | None = Field(default=None, description=HHMM)
+    preferred_time: LocalTime | None = Field(default=None, description=HHMM)
     period: Literal["day", "week"] = Field(
         default="day", description='"week" with target_per_period=4 means 4 times a week'
     )
@@ -95,7 +103,7 @@ async def log_habit(args: LogHabitArgs, ctx: ToolContext) -> ToolResult:
 class UpdateHabitArgs(HabitUpdate):
     habit_id: int
     rrule: str | None = Field(default=None, description=RRULE)
-    preferred_time: time | None = Field(default=None, description=HHMM + "; null clears it")
+    preferred_time: LocalTime | None = Field(default=None, description=HHMM + "; null clears it")
 
 
 @tool(ToolTier.WRITE, UpdateHabitArgs)
