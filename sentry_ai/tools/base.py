@@ -12,7 +12,11 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentry_ai.agent import llm
-from sentry_ai.services.reminders import NoopReminderScheduler, ReminderScheduler
+from sentry_ai.services.reminders import (
+    NoopReminderScheduler,
+    ReminderScheduler,
+    ReminderService,
+)
 from sentry_ai.services.time import local_date_of, to_local
 
 Embedder = Callable[[list[str]], Awaitable[list[list[float]]]]
@@ -56,6 +60,9 @@ class ToolContext(BaseModel):
     @property
     def today(self) -> date:
         return local_date_of(self.now)
+
+    def reminder_service(self) -> ReminderService:
+        return ReminderService(self.session, self.user_id, self.reminders, now=self.now)
 
 
 Run = Callable[[Any, ToolContext], Awaitable[ToolResult]]
@@ -104,6 +111,11 @@ def ok(message: str, **data: Any) -> ToolResult:
 def fail(error: str, message: str, **data: Any) -> ToolResult:
     """An expected failure (not found, time in the past): the LLM reads `message` and recovers."""
     return ToolResult(ok=False, error=error, message=message, data=to_data(data))
+
+
+def when(value: datetime) -> str:
+    """Short local label for messages, e.g. "Fri 27 Nov 17:00"."""
+    return to_local(value).strftime("%a %d %b %H:%M")
 
 
 def to_data(value: Any) -> Any:
