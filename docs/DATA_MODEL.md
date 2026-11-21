@@ -6,7 +6,9 @@ user's life) are stored as `DATE` computed in `USER_TZ` (Asia/Kolkata).
 
 Conventions:
 - PK: `id BIGSERIAL` unless stated.
-- Every table has `user_id TEXT NOT NULL` (single value in v1, from config).
+- Every user-owned table has `user_id TEXT NOT NULL` (single value in v1, from config).
+  Child tables (`plan_blocks`) inherit ownership through their parent; system tables
+  (`proactive_runs`, `llm_usage`) are process-wide and have no `user_id`.
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `updated_at` where rows are mutated.
 - Soft-delete with `archived_at TIMESTAMPTZ NULL` for user-facing entities (tasks, habits, routines). Hard delete only via explicit destructive tool.
 - Enums as `TEXT` + `CHECK` constraint (easier migrations than PG enums).
