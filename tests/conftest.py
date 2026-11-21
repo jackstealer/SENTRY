@@ -1,9 +1,13 @@
 """Points the whole test run at `<dev db>_test` so tests can never touch real data."""
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -41,8 +45,20 @@ async def _create_database_if_missing(url: str) -> None:
 
 
 @pytest.fixture(scope="session")
-async def database() -> str:
+def alembic_cfg() -> Config:
+    # No ini file: alembic.ini's logging config would reset the app's logging mid-run.
+    cfg = Config()
+    cfg.set_main_option("script_location", str(Path(__file__).resolve().parents[1] / "migrations"))
+    cfg.set_main_option("path_separator", "os")
+    cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL.replace("%", "%%"))
+    return cfg
+
+
+@pytest.fixture(scope="session")
+async def database(alembic_cfg: Config) -> str:
     await _create_database_if_missing(TEST_DATABASE_URL)
+    # env.py calls asyncio.run(), so it needs a thread without a running loop
+    await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
     return TEST_DATABASE_URL
 
 

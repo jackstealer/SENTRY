@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "SENTRY: a single-user, always-on personal AI that runs my daily routine"
 requires-python = ">=3.11"
 dependencies = [
+    "alembic>=1.20,<2",
     "asyncpg>=0.32,<0.33",
     "pydantic>=2.14,<3",
     "pydantic-settings>=2.16,<3",
