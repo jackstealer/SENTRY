@@ -21,7 +21,7 @@ def test_defaults_match_docs(clean_env: pytest.MonkeyPatch) -> None:
     s = Settings(_env_file=None)  # type: ignore[call-arg]
     assert s.env == "dev"
     assert s.user_tz == "Asia/Kolkata"
-    assert s.database_url == "postgresql+asyncpg://sentry:sentry@localhost:5432/sentry"
+    assert s.database_url == "postgresql+asyncpg://sentry:sentry@127.0.0.1:5432/sentry"
     assert s.openai_api_key is None
     assert s.openai_model_fallbacks == []
     assert s.persona_honorific == "sir"

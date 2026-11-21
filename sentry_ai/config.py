@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     user_id: str = "me"
     user_name: str = ""
     user_tz: str = "Asia/Kolkata"
-    database_url: str = "postgresql+asyncpg://sentry:sentry@localhost:5432/sentry"
+    database_url: str = "postgresql+asyncpg://sentry:sentry@127.0.0.1:5432/sentry"
 
     openai_api_key: SecretStr | None = None
     openai_model_reasoning: str = ""
