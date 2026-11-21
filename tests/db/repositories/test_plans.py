@@ -102,3 +102,11 @@ async def test_update_block_moves_and_records_outcome(repo: PlanRepo) -> None:
     assert tagged is not None and (tagged.outcome, tagged.gcal_event_id) == ("done", "gcal-1")
     assert await repo.update_block(original.id, PlanBlockUpdate()) == tagged
     assert await repo.update_block(999_999, PlanBlockUpdate(outcome="done")) is None
+
+
+async def test_get_block_is_scoped_through_the_plan(repo: PlanRepo, session: AsyncSession) -> None:
+    plan = await repo.create_draft(DAY, None, [block(10, "Laundry")])
+    [laundry] = plan.blocks
+    assert await repo.get_block(laundry.id) == laundry
+    assert await PlanRepo(session, "someone-else").get_block(laundry.id) is None
+    assert await repo.get_block(999_999) is None

@@ -42,6 +42,10 @@ class NoopReminderScheduler:
 class ReminderError(ValueError):
     """An expected problem (past time, unknown id); the message is fit to show the user."""
 
+    def __init__(self, message: str, error: str = "invalid_state") -> None:
+        super().__init__(message)
+        self.error = error  # becomes ToolResult.error
+
 
 class ReminderService:
     """Every reminder change goes through here so the row and its job never disagree."""
@@ -54,7 +58,9 @@ class ReminderService:
 
     async def create(self, data: ReminderCreate) -> ReminderDTO:
         if data.fire_at <= self.now:
-            raise ReminderError("That time has already passed; pick a time in the future.")
+            raise ReminderError(
+                "That time has already passed; pick a time in the future.", "invalid_time"
+            )
         return await self._schedule(await self.repo.create(data))
 
     async def snooze(self, reminder_id: int, minutes: int) -> ReminderDTO:
@@ -143,7 +149,7 @@ class ReminderService:
     async def _get(self, reminder_id: int) -> ReminderDTO:
         reminder = await self.repo.get(reminder_id)
         if reminder is None:
-            raise ReminderError(f"There is no reminder {reminder_id}.")
+            raise ReminderError(f"There is no reminder {reminder_id}.", "not_found")
         return reminder
 
     async def _update(self, reminder_id: int, change: ReminderUpdate) -> ReminderDTO:

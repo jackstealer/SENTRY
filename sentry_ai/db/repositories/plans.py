@@ -88,16 +88,23 @@ class PlanRepo(Repo):
         )
         return await self.get(plan_id)
 
+    def _owned_block(self, block_id: int) -> ColumnElement[bool]:
+        # blocks have no user_id: ownership comes through the parent plan
+        owned = PlanBlock.plan_id.in_(sa.select(DayPlan.id).where(self._mine()))
+        return sa.and_(PlanBlock.id == block_id, owned)
+
+    async def get_block(self, block_id: int) -> PlanBlockDTO | None:
+        return await self._one(
+            sa.select(PlanBlock).where(self._owned_block(block_id)), PlanBlockDTO
+        )
+
     async def update_block(self, block_id: int, changes: PlanBlockUpdate) -> PlanBlockDTO | None:
         values = changes.changes()
-        owned = PlanBlock.plan_id.in_(sa.select(DayPlan.id).where(self._mine()))
         if not values:
-            return await self._one(
-                sa.select(PlanBlock).where(PlanBlock.id == block_id, owned), PlanBlockDTO
-            )
+            return await self.get_block(block_id)
         stmt = (
             sa.update(PlanBlock)
-            .where(PlanBlock.id == block_id, owned)
+            .where(self._owned_block(block_id))
             .values(**values)
             .returning(PlanBlock)
             .execution_options(**NO_SYNC)

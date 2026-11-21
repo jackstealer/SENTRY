@@ -4,7 +4,7 @@ import types
 from collections.abc import Iterable
 from typing import Any, Literal
 
-from sentry_ai.tools import habits, memory, routines, tasks
+from sentry_ai.tools import habits, memory, reminders, routines, tasks
 from sentry_ai.tools.base import Tool, ToolTier
 
 Intent = Literal[
@@ -68,7 +68,7 @@ def collect(modules: Iterable[types.ModuleType]) -> dict[str, Tool]:
     return found
 
 
-_MODULES: tuple[types.ModuleType, ...] = (tasks, habits, routines, memory)
+_MODULES: tuple[types.ModuleType, ...] = (tasks, habits, routines, memory, reminders)
 TOOLS: dict[str, Tool] = collect(_MODULES)
 
 
