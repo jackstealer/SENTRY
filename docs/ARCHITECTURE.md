@@ -162,7 +162,7 @@ Rules:
 
 - **Telegram**: only accept messages from `TELEGRAM_ALLOWED_CHAT_ID` (drop everything else silently, log it). Commands: `/today`, `/plan`, `/tasks`, `/habits`, `/review`, `/pause` (mute proactive msgs for N hours), `/help`. Free text goes to the agent. Use inline buttons for confirmations and reminder actions (Done / Snooze 15 / Skip).
 - **CLI**: `python -m sentry_ai.cli "<message>"` — same agent, prints reply. For dev/testing.
-- **FastAPI**: `/health`, `/debug/trigger/{job}` (dev only, behind `ENV=dev`), Telegram webhook route (prod), dashboard API (Phase 7).
+- **FastAPI**: `/health`, `/debug/trigger/{job}` (dev only, behind `ENV=dev`), Telegram webhook route (prod), activity API (Phase 7), dashboard API (Phase 12).
 
 ## 8. Memory
 

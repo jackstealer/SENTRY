@@ -50,14 +50,14 @@ CURRENT_PHASE: 0
 
 | Layer | Choice |
 |---|---|
-| Language | Python 3.11+ (backend), TypeScript/React (dashboard, Phase 7) |
+| Language | Python 3.11+ (backend), TypeScript/React (dashboard, Phase 12) |
 | Agent orchestration | LangGraph (`StateGraph`, checkpointing via Postgres) |
 | LLM provider | **OpenAI API** — model names come from env vars, never hardcoded |
 | API server | FastAPI + Uvicorn |
 | Scheduler | APScheduler (AsyncIOScheduler) with Postgres job store |
 | Database | PostgreSQL 16 + pgvector, accessed via SQLAlchemy 2.0 (async) + Alembic |
 | Validation | Pydantic v2 |
-| Primary interface | Telegram bot (`python-telegram-bot` v21+, async) |
+| Primary interface | Telegram bot (`python-telegram-bot` v22, async) |
 | Calendar | Google Calendar API (OAuth, my account only) |
 | Logging | structlog (JSON) |
 | Tests | pytest + pytest-asyncio |
@@ -72,7 +72,7 @@ CURRENT_PHASE: 0
 cp .env.example .env            # then fill keys
 docker compose up -d postgres
 uv sync                          # or: pip install -r requirements.txt
-alembic upgrade head
+uv run alembic upgrade head
 
 # run
 uv run python -m sentry_ai.main             # starts API + scheduler + telegram bot

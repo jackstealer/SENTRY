@@ -75,7 +75,7 @@ Acceptance
 Goal: every table from `DATA_MODEL.md`, with repositories and tests. Still no AI.
 
 Tasks
-- [ ] 1.1 ORM models for all tables in `DATA_MODEL.md` (`sentry_ai/db/models.py`)
+- [ ] 1.1 ORM models for the tables in `DATA_MODEL.md` §1–8 (§10–11 tables arrive with their phases) (`sentry_ai/db/models.py`)
 - [ ] 1.2 Alembic migration(s) generating the full schema incl. indexes, CHECKs, partial unique index, HNSW index
 - [ ] 1.3 Pydantic DTOs (`sentry_ai/db/schemas.py`)
 - [ ] 1.4 Repositories (one per aggregate) with CRUD + query methods needed by TOOLS_SPEC
@@ -171,7 +171,7 @@ Acceptance
 Goal: daily-usable on my phone. **Start using it for real from here.**
 
 Tasks
-- [ ] 5.1 `interfaces/telegram/bot.py` — python-telegram-bot v21 async, started inside the main loop
+- [ ] 5.1 `interfaces/telegram/bot.py` — python-telegram-bot v22 async, started inside the main loop
 - [ ] 5.2 Chat-id allowlist; drop + log everything else
 - [ ] 5.3 Commands: `/start`, `/today`, `/plan`, `/tasks`, `/habits`, `/review`, `/pause <hours>`, `/help`
 - [ ] 5.4 Free text → agent; typing indicator while processing
@@ -221,7 +221,7 @@ Tasks
 - [ ] 7.4 Local buffer (SQLite file on the laptop) + batched upload every 60 s to
       `POST /api/activity/events` with the dashboard token; survives backend downtime
 - [ ] 7.5 Backend: `activity_events`, `app_classifications`, `focus_sessions`,
-      `activity_daily` tables (DATA_MODEL §9) + migration
+      `activity_daily` tables (DATA_MODEL §10) + migration
 - [ ] 7.6 Classifier: rule table (seeded from USER_PROFILE `activity.rules`) →
       FAST-model fallback for unknown apps/domains, cached in `app_classifications`
 - [ ] 7.7 Focus session detector (pure function): productive ≥ 20 min, gaps ≤ 3 min tolerated,
