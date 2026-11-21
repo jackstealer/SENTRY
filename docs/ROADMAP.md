@@ -65,10 +65,10 @@ LOG_LEVEL=INFO
 ```
 
 Acceptance
-- [ ] `docker compose up -d postgres && alembic upgrade head` works on a clean machine
-- [ ] `uv run python -m sentry_ai.main` → `GET /health` returns `{"status":"ok","db":"ok"}`
-- [ ] `pytest -q`, `ruff`, `mypy` all clean
-- [ ] Logs are JSON and include `trace_id`
+- [x] `docker compose up -d postgres && alembic upgrade head` works on a clean machine
+- [x] `uv run python -m sentry_ai.main` → `GET /health` returns `{"status":"ok","db":"ok"}`
+- [x] `pytest -q`, `ruff`, `mypy` all clean
+- [x] Logs are JSON and include `trace_id`
 
 ---
 
