@@ -45,7 +45,8 @@ shape every later phase:
   is predictable and explainable ("didn't fit: no free 60-min slot").
 
 ## Consequences
-- Phase 3 must commit once per turn and must not commit inside nodes that call tools.
+- Phase 3 commits once per `tools` step, not once per turn (ADR-003): checkpoints are saved after
+  every node, so per-step commits keep the DB and the conversation state in agreement.
 - Greedy placement can miss a packing that a solver would find. Overcommitment is
   reported, never hidden.
 - The planner ignores travel time and energy levels. Phase 8 patterns may tune the
