@@ -21,7 +21,7 @@ Tasks
 - [x] 0.4 `docker-compose.yml` with `pgvector/pgvector:pg16`, healthcheck, named volume
 - [x] 0.5 SQLAlchemy async engine + session factory (`sentry_ai/db/session.py`)
 - [x] 0.6 Alembic set up (async), first migration: `CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;`
-- [ ] 0.7 structlog JSON logging with `trace_id` contextvar (`sentry_ai/observability/logging.py`)
+- [x] 0.7 structlog JSON logging with `trace_id` contextvar (`sentry_ai/observability/logging.py`)
 - [ ] 0.8 FastAPI app with `/health` (checks DB connectivity)
 - [ ] 0.9 `sentry_ai/main.py` boots FastAPI via Uvicorn programmatically
 - [ ] 0.10 OpenAI client wrapper (`sentry_ai/agent/llm.py`): one function per purpose, logs tokens/latency, reads model names from config
