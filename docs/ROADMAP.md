@@ -127,7 +127,7 @@ Goal: LangGraph agent that uses the tools correctly from text. CLI only.
 
 Tasks
 - [x] 3.1 `agent/state.py` — `AgentState` per ARCHITECTURE §3
-- [ ] 3.2 `agent/prompts/` — system prompt from PERSONA.md, route prompt; rendered with Jinja2
+- [x] 3.2 `agent/prompts/` — system prompt from PERSONA.md, route prompt; rendered with Jinja2
 - [ ] 3.3 Nodes: `load_context`, `route` (structured output), `act`, `tools`, `confirm`, `respond`, `persist`
 - [ ] 3.4 Graph wiring + Postgres checkpointer, thread per (user, local date)
 - [ ] 3.5 Loop guard (6 tool iterations), message trimming
