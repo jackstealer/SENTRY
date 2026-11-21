@@ -79,7 +79,7 @@ Goal: every table from `DATA_MODEL.md`, with repositories and tests. Still no AI
 Tasks
 - [x] 1.1 ORM models for the tables in `DATA_MODEL.md` §1–8 (§10–11 tables arrive with their phases) (`sentry_ai/db/models.py`)
 - [x] 1.2 Alembic migration(s) generating the full schema incl. indexes, CHECKs, partial unique index, HNSW index
-- [ ] 1.3 Pydantic DTOs (`sentry_ai/db/schemas.py`)
+- [x] 1.3 Pydantic DTOs (`sentry_ai/db/schemas.py`)
 - [ ] 1.4 Repositories (one per aggregate) with CRUD + query methods needed by TOOLS_SPEC
 - [ ] 1.5 `sentry_ai/services/time.py`: now_local(), to_utc(), local_date_of(), parse helpers; RRULE expansion with `python-dateutil`
 - [ ] 1.6 `services/routines.py`: expand routines + habits into instances for a given local date

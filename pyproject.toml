@@ -12,6 +12,7 @@ dependencies = [
     "pgvector>=0.5.1,<0.6",
     "pydantic>=2.14,<3",
     "pydantic-settings>=2.16,<3",
+    "python-dateutil>=4.0,<5",
     "sqlalchemy[asyncio]>=2.1,<2.2",
     "structlog>=26.1,<27",
     "tzdata>=2025.2",
@@ -26,6 +27,7 @@ dev = [
     "pytest>=9.2,<10",
     "pytest-asyncio>=1.5,<2",
     "ruff>=0.17,<0.18",
+    "types-python-dateutil>=2.9.0.20261116",
 ]
 
 [build-system]
