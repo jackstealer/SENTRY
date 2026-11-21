@@ -7,6 +7,7 @@ from typing import Any, Literal
 from sentry_ai.tools import (
     calendar,
     habits,
+    housekeeping,
     memory,
     planning,
     query,
@@ -86,6 +87,7 @@ _MODULES: tuple[types.ModuleType, ...] = (
     reminders,
     calendar,
     memory,
+    housekeeping,
 )
 TOOLS: dict[str, Tool] = collect(_MODULES)
 
