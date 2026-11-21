@@ -83,7 +83,7 @@ Tasks
 - [x] 1.4 Repositories (one per aggregate) with CRUD + query methods needed by TOOLS_SPEC
 - [x] 1.5 `sentry_ai/services/time.py`: now_local(), to_utc(), local_date_of(), parse helpers; RRULE expansion with `python-dateutil`
 - [x] 1.6 `services/routines.py`: expand routines + habits into instances for a given local date
-- [ ] 1.7 Habit streak calculation (pure function + tests incl. week-period habits)
+- [x] 1.7 Habit streak calculation (pure function + tests incl. week-period habits)
 - [ ] 1.8 Seed script `scripts/seed_from_profile.py`: reads `docs/USER_PROFILE.md` YAML block → inserts routines, habits, preferences
 - [x] 1.9 Test fixtures: ephemeral test DB (transaction rollback per test)
 

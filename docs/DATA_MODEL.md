@@ -89,6 +89,15 @@ habit_logs (
 )
 ```
 Streaks are **computed** from `habit_logs` (no stored streak column — avoids drift).
+Rules (`sentry_ai/services/streaks.py`):
+- Day habits: consecutive **due** days (per the RRULE) marked `done`. Non-due days never break it.
+- `skipped` is neutral (neither extends nor breaks). `missed`, or a past due day with no log, breaks.
+  Nothing writes `missed` rows automatically: absence on a past due day already counts as missed.
+- Today not yet logged does not break the streak.
+- Week habits: consecutive Monday–Sunday weeks with `done` ≥ `target_per_period` (any day of the
+  week counts). The current week counts once met and is ignored until then. A past week whose
+  `skipped` days cover the shortfall is excused (neutral).
+- Nothing before the habit's first day (creation day, or an earlier backfilled log) counts.
 
 ## 4. Day plans
 
