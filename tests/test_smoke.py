@@ -29,7 +29,13 @@ async def test_db_reachable(engine: AsyncEngine) -> None:
 @pytest.mark.skipif(
     not _llm_configured(), reason="set OPENAI_API_KEY and OPENAI_MODEL_FAST in .env"
 )
-async def test_one_cheap_llm_call() -> None:
+async def test_one_cheap_llm_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows: list[object] = []
+
+    async def keep(row: object) -> None:  # don't commit a usage row into the test DB
+        rows.append(row)
+
+    monkeypatch.setattr(llm, "record_usage", keep)
     # usage, not content: a reasoning "fast" model may spend its tiny budget on reasoning
     response = await llm.chat(
         [{"role": "user", "content": "Reply with the single word OK."}],
@@ -38,3 +44,4 @@ async def test_one_cheap_llm_call() -> None:
     )
     assert response.usage is not None
     assert response.usage.prompt_tokens > 0
+    assert len(rows) == 1  # usage is recorded for every call

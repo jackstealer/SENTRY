@@ -1,5 +1,7 @@
 """sentry_ai/cli.py (kept next to the agent tests to share the fake LLM and deps fixtures)."""
 
+import io
+import sys
 from collections.abc import AsyncIterator
 
 import pytest
@@ -62,3 +64,13 @@ def test_arguments_need_a_message_or_repl_but_not_both(capsys: pytest.CaptureFix
         with pytest.raises(SystemExit):
             cli.parse_args(bad)
     assert "give a message, or --repl" in capsys.readouterr().err
+
+
+def test_output_is_switched_to_utf8_for_emoji_replies(monkeypatch: pytest.MonkeyPatch) -> None:
+    raw = io.BytesIO()
+    windows_pipe = io.TextIOWrapper(raw, encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", windows_pipe)
+    cli.utf8_output()
+    print("✅ Done")
+    windows_pipe.flush()
+    assert raw.getvalue().decode("utf-8").strip() == "✅ Done"

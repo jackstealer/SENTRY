@@ -46,6 +46,7 @@ MODEL_UNAVAILABLE: tuple[type[Exception], ...] = (
     openai.NotFoundError,
     openai.PermissionDeniedError,
 )
+OPENAI_BASE_URL = "https://api.openai.com/v1"  # used when the setting is blank
 ATTEMPTS_PER_MODEL = 3
 RETRY_WAIT = wait_exponential(multiplier=1, min=1, max=4)  # 1 s, 2 s (tests set wait_none)
 MAX_RETRY_AFTER = 30.0  # seconds; a longer Retry-After (e.g. a daily cap) is not worth waiting for
@@ -68,7 +69,8 @@ def get_client() -> AsyncOpenAI:
     # max_retries=0: retries are ours (tenacity below), so they never stack with the SDK's
     return AsyncOpenAI(
         api_key=settings.openai_api_key.get_secret_value(),
-        base_url=settings.openai_base_url or None,  # None = the SDK's default (OpenAI)
+        # always explicit: with None the SDK reads OPENAI_BASE_URL itself, bypassing config
+        base_url=settings.openai_base_url or OPENAI_BASE_URL,
         timeout=30.0,
         max_retries=0,
     )

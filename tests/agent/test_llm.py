@@ -82,6 +82,8 @@ def configured(monkeypatch: pytest.MonkeyPatch) -> Iterator[pytest.MonkeyPatch]:
     monkeypatch.setenv("OPENAI_MODEL_REASONING", "reasoning-model")
     monkeypatch.setenv("OPENAI_EMBEDDING_MODEL", "embed-model")
     monkeypatch.setenv("OPENAI_EMBEDDING_DIMS", "1536")
+    for name in ("OPENAI_BASE_URL", "OPENAI_MODEL_FALLBACKS", "OPENAI_PRICES"):
+        monkeypatch.setenv(name, "")  # never inherit the real .env's provider settings
     _reset_caches()
     yield monkeypatch
     _reset_caches()  # never leak the fake key into later tests (smoke test checks for a key)

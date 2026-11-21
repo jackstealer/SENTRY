@@ -7,6 +7,7 @@ add -v for INFO logs (the full trace) on stderr, -vv for DEBUG
 
 import argparse
 import asyncio
+import io
 import sys
 from collections.abc import AsyncIterator, Callable
 
@@ -72,8 +73,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def utf8_output() -> None:
+    """Replies may contain ✅ ⏰ 📌 (PERSONA); Windows pipes default to cp1252 and would crash."""
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
+    utf8_output()
     # quiet by default so replies stay readable; logs go to stderr either way
     configure_logging(("WARNING", "INFO", "DEBUG")[min(args.verbose, 2)], sys.stderr)
     # psycopg (the checkpointer) cannot use Windows' default Proactor loop
