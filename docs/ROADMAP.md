@@ -22,7 +22,7 @@ Tasks
 - [x] 0.5 SQLAlchemy async engine + session factory (`sentry_ai/db/session.py`)
 - [x] 0.6 Alembic set up (async), first migration: `CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;`
 - [x] 0.7 structlog JSON logging with `trace_id` contextvar (`sentry_ai/observability/logging.py`)
-- [ ] 0.8 FastAPI app with `/health` (checks DB connectivity)
+- [x] 0.8 FastAPI app with `/health` (checks DB connectivity)
 - [ ] 0.9 `sentry_ai/main.py` boots FastAPI via Uvicorn programmatically
 - [ ] 0.10 OpenAI client wrapper (`sentry_ai/agent/llm.py`): one function per purpose, logs tokens/latency, reads model names from config
 - [ ] 0.11 Smoke test: `tests/test_smoke.py` — config loads, DB reachable, one cheap LLM call (skipped if no API key)
