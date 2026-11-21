@@ -96,3 +96,63 @@ def test_intent_subsets_follow_tools_spec() -> None:
 def test_datetime_args_parse_iso_with_offset() -> None:
     args = WhenArgs.model_validate({"at": "2026-11-22T23:50:00+05:30"})
     assert args.at == datetime.fromisoformat("2026-11-22T18:20:00+00:00")
+
+
+# --- the real registry (TOOLS_SPEC sections 4-6) -------------------------------------------
+
+PHASE_2_TOOLS = {
+    # query
+    "get_today_overview", "list_tasks", "get_habits_status", "get_free_slots", "get_stats",
+    # tasks, habits, routines
+    "create_task", "update_task", "complete_task", "skip_task", "find_task",
+    "create_habit", "log_habit", "update_habit",
+    "create_routine", "update_routine", "list_routines",
+    # planning, reminders, calendar (cache only until Phase 6)
+    "propose_day_plan", "confirm_day_plan", "move_block",
+    "create_reminder", "snooze_reminder", "ack_reminder", "cancel_reminder",
+    "get_calendar_events",
+    # memory, preferences, housekeeping
+    "remember", "recall", "set_preference", "get_preferences", "forget",
+    "archive_tasks", "delete_habit", "delete_routine",
+}  # fmt: skip
+DESTRUCTIVE = {"forget", "archive_tasks", "delete_habit", "delete_routine"}
+
+
+def test_every_phase_2_tool_is_registered() -> None:
+    assert set(registry.TOOLS) == PHASE_2_TOOLS
+
+
+def test_tiers_match_the_spec() -> None:
+    tiers = {name: t.tier for name, t in registry.TOOLS.items()}
+    assert {n for n, tier in tiers.items() if tier is ToolTier.DESTRUCTIVE} == DESTRUCTIVE
+    reads = {n for n, tier in tiers.items() if tier is ToolTier.READ}
+    assert reads == {
+        "get_today_overview", "list_tasks", "get_habits_status", "get_free_slots", "get_stats",
+        "find_task", "list_routines", "get_calendar_events", "recall", "get_preferences",
+    }  # fmt: skip
+    assert all(t.preview is not None for n, t in registry.TOOLS.items() if n in DESTRUCTIVE)
+
+
+def test_every_intent_names_real_tools_and_every_change_is_reachable() -> None:
+    reachable: set[str] = set()
+    for intent in registry.INTENTS:
+        names = [t.name for t in registry.tools_for(intent)]
+        assert len(names) == len(set(names)), intent
+        reachable |= set(names)
+    assert reachable == PHASE_2_TOOLS  # nothing the LLM could never call
+
+
+@pytest.mark.parametrize("intent", list(registry.INTENTS))
+def test_openai_schemas_are_valid_for_every_intent(intent: registry.Intent) -> None:
+    schemas = registry.openai_schemas(intent)
+    assert schemas
+    for entry in schemas:
+        assert_valid_openai_tool(entry)
+        assert entry["function"]["parameters"].get("additionalProperties") is False
+
+
+@pytest.mark.parametrize("name", sorted(PHASE_2_TOOLS))
+async def test_every_tool_rejects_unknown_arguments(call: Any, name: str) -> None:
+    result = await call(name, confirmed=True, unexpected_argument=1)
+    assert (result.ok, result.error) == (False, "invalid_args")
+    assert "unexpected_argument" in result.message

@@ -35,7 +35,21 @@ class ToolContext(BaseModel):
     now: datetime            # tz-aware, USER_TZ
     session: AsyncSession
     confirmed: bool = False  # True only when re-run after user confirmation
+    reminders: ReminderScheduler = NoopReminderScheduler()  # APScheduler from Phase 4
+    embed: Embedder = llm.embed                              # fakes in tests
 ```
+
+As built (`sentry_ai/tools/base.py`): `Tool` is a frozen dataclass made by the
+`@tool(tier, ArgsModel, preview=...)` decorator on `async def name(args, ctx)`; the function
+name is the tool name and its docstring is the LLM description. Input models extend
+`ToolArgs` (`extra="forbid"`). Destructive tools, and only they, have a `preview(args, ctx)`
+that returns the confirmation summary. Tool output datetimes are rendered in `USER_TZ`.
+
+Executor (`tools/executor.py`): validate args → (destructive and not confirmed → preview,
+return `confirmation_required`) → run inside a savepoint → `ToolResult`. A failed or crashed
+call rolls back only its own savepoint; the caller (one agent turn) commits once. Crashes
+become `internal_error` with the trace id; a missing OpenAI setting becomes `not_configured`.
+Every call logs `tool_called` (arg keys only) and `tool_completed` (ok, error, latency).
 
 ## 2. Confirmation flow (destructive tools)
 
@@ -46,6 +60,11 @@ class ToolContext(BaseModel):
 4. User taps Yes → graph resumes from checkpoint → executor runs with `confirmed=True`.
 5. Any other reply → pending confirmation cleared, treated as a new message.
 6. Pending confirmations expire after 10 minutes.
+
+The executor returns `ok=False, error="confirmation_required"` with
+`data.pending = {tool, args, summary, expires_at}`. If the preview finds nothing to act on
+(no matching memory, no completed tasks in range), it returns that failure directly and the
+user is never asked to confirm nothing.
 
 `write`-tier tools run immediately but the reply must state exactly what changed
 ("Moved 'DSA set' to 6:00–7:00 PM.").
@@ -67,7 +86,7 @@ resolved by the LLM into **ISO 8601 with offset** in tool args, using
 | `get_today_overview` | `date?` (default today) | fixed blocks, calendar events, confirmed plan, tasks due, habits due, reminders pending |
 | `list_tasks` | `status?`, `due_before?`, `project?`, `limit=20` | tasks |
 | `get_habits_status` | `period: day\|week` | each habit + done/target + current streak |
-| `get_free_slots` | `date`, `min_duration_min=30` | free intervals respecting preferences + fixed blocks |
+| `get_free_slots` | `date?` (default today), `min_duration_min=30` | free intervals respecting preferences, fixed blocks and the confirmed plan |
 | `get_stats` | `range: week\|month` | completion %, habit %, rollover counts, plan adherence |
 
 ### Tasks (write)
@@ -96,13 +115,24 @@ resolved by the LLM into **ISO 8601 with offset** in tool args, using
 ### Planning
 | Tool | Tier | Input | Notes |
 |---|---|---|---|
-| `propose_day_plan` | write | `date`, `available_windows?`, `focus?` | Deterministic scheduler in `services/planner.py` places tasks/habits into free slots respecting hard preferences; LLM only chooses ordering/priorities. Saves as `draft`. |
+| `propose_day_plan` | write | `date?`, `available_windows?`, `focus?`, `task_order?` | Deterministic scheduler in `services/planner.py` places tasks/habits into free slots respecting hard preferences; LLM only chooses ordering/priorities (`task_order` = task ids that matter today, in order). Saves as `draft`; reports `unplaced`, `deferred`, `conflicts`, `overcommitted_by_min`. |
 | `confirm_day_plan` | write | `plan_id`, `sync_to_calendar=true` | Marks confirmed, supersedes older, creates reminders, writes blocks to SENTRY calendar |
 | `move_block` | write | `block_id`, `new_start` | reschedules reminder + gcal event |
 
 **Planner split:** the LLM decides *what matters today*; `planner.py` (pure
 Python, unit-tested) decides *where it fits*. Never let the LLM produce raw
 timestamps for a whole plan — it hallucinates overlaps.
+
+Planner rules (ADR-002): the frame is max(`wake_time`, `no_tasks_before`) → `sleep_time`
+minus `quiet_hours` (from the next quarter hour when planning today). Fixed routines and
+calendar events stay put, padded by a 10-min buffer; clashes between them are reported.
+Flexible routines and timed habits (30-min blocks) go nearest their usual time within ±2 h.
+Tasks follow `task_order`, then `focus`, then overdue/due-today, priority, due date. At most
+`max_tasks_per_day` are placed (the rest are `deferred`). A task of 45 min or more prefers the
+`deep_work_window`. Otherwise each task gets the earliest slot ending before its due time, or
+the earliest slot at all; tasks are never split. Whatever does not fit is `unplaced`, and its
+minutes are `overcommitted_by_min`. `confirm_day_plan` reminds `default_reminder_min`
+(default 10) before each task and habit block.
 
 ### Reminders (write)
 | Tool | Input |
@@ -115,9 +145,9 @@ timestamps for a whole plan — it hallucinates overlaps.
 ### Calendar
 | Tool | Tier | Notes |
 |---|---|---|
-| `get_calendar_events` | read | from cache, `start`, `end` |
-| `create_calendar_block` | write | SENTRY calendar only |
-| `delete_calendar_block` | destructive | SENTRY calendar only; never touches other calendars |
+| `get_calendar_events` | read | from cache, `start`, `end` (at most 31 days) |
+| `create_calendar_block` | write | SENTRY calendar only — **Phase 6** (needs Google OAuth) |
+| `delete_calendar_block` | destructive | SENTRY calendar only; never touches other calendars — **Phase 6** |
 
 ### Memory & preferences
 | Tool | Tier | Input |
@@ -131,7 +161,7 @@ timestamps for a whole plan — it hallucinates overlaps.
 ### Housekeeping (destructive)
 | Tool | Input |
 |---|---|
-| `archive_tasks` | `filter` (e.g. done before date) |
+| `archive_tasks` | `completed_before` (local date; done tasks finished before it) |
 | `delete_habit` | `habit_id` |
 | `delete_routine` | `routine_id` |
 
@@ -147,8 +177,12 @@ timestamps for a whole plan — it hallucinates overlaps.
 | plan | get_today_overview, get_free_slots, list_tasks, propose_day_plan, confirm_day_plan, move_block |
 | review | get_stats, get_habits_status, list_tasks, update_task, recall |
 | preference | set_preference, get_preferences, remember, recall, forget |
+| manage | find_task, list_tasks, update_task, get_habits_status, update_habit, list_routines, update_routine, cancel_reminder, archive_tasks, delete_habit, delete_routine |
 | smalltalk | recall |
 | other | all read tools |
+
+`manage` (edit/delete existing things: "move the gym to 7", "delete all done tasks") was
+added in Phase 2 so that every write and destructive tool can be reached from some intent.
 
 Proactive triggers map to: morning_brief → `query` set; evening_review → `review` set; weekly_review → `review` set.
 

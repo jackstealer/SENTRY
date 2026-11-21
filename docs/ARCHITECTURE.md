@@ -79,7 +79,7 @@ class AgentState(TypedDict):
 | Node | Model | Responsibility |
 |---|---|---|
 | `load_context` | none | Pull "today snapshot" from DB (fixed blocks, due tasks, habits due, last plan), current time in IST, retrieve top-k memories for the message |
-| `route` | FAST model | Classify intent: `smalltalk`, `capture` (task/habit/reminder), `query` (what's on…), `plan`, `checkin` (done/snooze/skip), `review`, `preference`, `other`. Cheap + structured output. |
+| `route` | FAST model | Classify intent: `smalltalk`, `capture` (task/habit/reminder), `query` (what's on…), `plan`, `checkin` (done/snooze/skip), `review`, `preference`, `manage` (edit/delete existing items), `other`. Cheap + structured output. |
 | `act` | REASONING model (FAST for `capture`/`checkin`) | Tool-calling LLM step with the tool subset allowed for the intent |
 | `tools` | none | Executes tool calls via registry, validates input, enforces permission tier |
 | `confirm` | none | If a tool requires confirmation → store `pending_confirmation`, ask user, END. Next user reply resumes from checkpoint |
