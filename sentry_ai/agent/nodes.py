@@ -14,7 +14,15 @@ from pydantic import BaseModel, ConfigDict
 
 from sentry_ai.agent import llm
 from sentry_ai.agent.deps import AgentDeps
-from sentry_ai.agent.messages import UNPARSED, from_openai, to_openai
+from sentry_ai.agent.messages import (
+    CHARS_PER_TOKEN,
+    MAX_PROMPT_TOKENS,
+    UNPARSED,
+    estimate_tokens,
+    from_openai,
+    to_openai,
+    trim,
+)
 from sentry_ai.agent.prompting import render
 from sentry_ai.agent.state import AgentState, PendingConfirmation
 from sentry_ai.db.repositories import MemoryRepo
@@ -104,16 +112,24 @@ async def act(state: AgentState, runtime: Runtime[AgentDeps]) -> dict[str, Any]:
     """One tool-calling LLM step with only the routed intent's tools."""
     intent: Intent = state.get("intent") or "other"
     system = render("system", **state["context"])
+    schemas = registry.openai_schemas(intent)
+    fixed = len(system) + len(json.dumps(schemas))
+    history = trim(
+        state.get("messages", []), budget_chars=MAX_PROMPT_TOKENS * CHARS_PER_TOKEN - fixed
+    )
+    dropped = len(state.get("messages", [])) - len(history)
+    log.debug("prompt_built", est_tokens=estimate_tokens(system) + fixed // CHARS_PER_TOKEN,
+              history=len(history), dropped=dropped)  # fmt: skip
     messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": system},
-        *to_openai(state.get("messages", [])),
+        *to_openai(history),
     ]
     try:
         response = await llm.chat(
             messages,
             purpose="act",
             tier="fast" if intent in FAST_INTENTS else "reasoning",
-            tools=registry.openai_schemas(intent),
+            tools=schemas,
             temperature=0.3,
         )
     except llm.LLMNotConfiguredError as exc:
