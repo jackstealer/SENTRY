@@ -252,3 +252,17 @@ def score_turn(expect: TurnExpect, seen: Observed, refs: dict[str, int]) -> Turn
             "expected a confirmation question" if expect.confirmation else "asked to confirm"
         )
     return TurnScore(intent_ok=expect.intent_ok(seen.intent), problems=problems)
+
+
+def calls_in(
+    new_messages: list[Any], pending_before: dict[str, Any] | None, executed_pending: bool
+) -> list[tuple[str, dict[str, Any]]]:
+    """Tool calls made in one turn: the model's own, plus a confirmed call run by run_pending."""
+    calls = [
+        (call["name"], dict(call["args"]))
+        for message in new_messages
+        for call in getattr(message, "tool_calls", None) or []
+    ]
+    if executed_pending and pending_before is not None:
+        calls.append((pending_before["tool"], dict(pending_before["args"])))
+    return calls
