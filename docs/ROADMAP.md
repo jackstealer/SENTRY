@@ -26,7 +26,7 @@ Tasks
 - [x] 0.9 `sentry_ai/main.py` boots FastAPI via Uvicorn programmatically
 - [x] 0.10 OpenAI client wrapper (`sentry_ai/agent/llm.py`): one function per purpose, logs tokens/latency, reads model names from config
 - [x] 0.11 Smoke test: `tests/test_smoke.py` — config loads, DB reachable, one cheap LLM call (skipped if no API key)
-- [ ] 0.12 `README.md` setup steps verified from a clean clone
+- [x] 0.12 `README.md` setup steps verified from a clean clone
 
 `.env.example` variables:
 ```
