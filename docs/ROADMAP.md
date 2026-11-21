@@ -81,7 +81,7 @@ Tasks
 - [x] 1.2 Alembic migration(s) generating the full schema incl. indexes, CHECKs, partial unique index, HNSW index
 - [x] 1.3 Pydantic DTOs (`sentry_ai/db/schemas.py`)
 - [x] 1.4 Repositories (one per aggregate) with CRUD + query methods needed by TOOLS_SPEC
-- [ ] 1.5 `sentry_ai/services/time.py`: now_local(), to_utc(), local_date_of(), parse helpers; RRULE expansion with `python-dateutil`
+- [x] 1.5 `sentry_ai/services/time.py`: now_local(), to_utc(), local_date_of(), parse helpers; RRULE expansion with `python-dateutil`
 - [ ] 1.6 `services/routines.py`: expand routines + habits into instances for a given local date
 - [ ] 1.7 Habit streak calculation (pure function + tests incl. week-period habits)
 - [ ] 1.8 Seed script `scripts/seed_from_profile.py`: reads `docs/USER_PROFILE.md` YAML block → inserts routines, habits, preferences
