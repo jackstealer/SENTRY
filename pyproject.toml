@@ -2,6 +2,7 @@
 name = "sentry-ai"
 version = "0.1.0"
 description = "SENTRY: a single-user, always-on personal AI that runs my daily routine"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.20,<2",

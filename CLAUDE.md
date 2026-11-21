@@ -71,12 +71,13 @@ CURRENT_PHASE: 0
 # setup
 cp .env.example .env            # then fill keys
 docker compose up -d postgres
-uv sync                          # or: pip install -r requirements.txt
+uv sync
 uv run alembic upgrade head
+uv run pre-commit install       # ruff + mypy on every commit
 
 # run
-uv run python -m sentry_ai.main             # starts API + scheduler + telegram bot
-uv run python -m sentry_ai.cli "plan my day" # one-shot CLI for dev
+uv run python -m sentry_ai.main             # API now; + scheduler (P4) + telegram bot (P5)
+uv run python -m sentry_ai.cli "plan my day" # one-shot CLI for dev (from Phase 3)
 
 # quality
 uv run pytest -q
