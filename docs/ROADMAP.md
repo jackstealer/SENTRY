@@ -102,7 +102,7 @@ Goal: every tool in `TOOLS_SPEC.md` implemented and tested, callable without an 
 
 Tasks
 - [x] 2.1 `tools/base.py`: `Tool` protocol, `ToolTier`, `ToolResult`, `ToolContext`
-- [ ] 2.2 `tools/registry.py`: registration, lookup by name, intent → subset mapping, export as OpenAI function schemas
+- [x] 2.2 `tools/registry.py`: registration, lookup by name, intent → subset mapping, export as OpenAI function schemas
 - [ ] 2.3 `tools/executor.py`: validate args, enforce tier/confirmation, timing + logging, catch exceptions → `ToolResult(ok=False)`
 - [ ] 2.4 Query tools
 - [ ] 2.5 Task tools (incl. `find_task` with pg_trgm similarity)
