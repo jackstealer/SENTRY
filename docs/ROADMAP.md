@@ -18,7 +18,7 @@ Tasks
 - [x] 0.1 Init repo: `pyproject.toml` (uv), ruff, mypy (strict on `sentry_ai/`), pytest, pre-commit
 - [x] 0.2 Folder structure exactly as `CLAUDE.md` §6 (+ `sentry_ai/services/`)
 - [x] 0.3 `sentry_ai/config.py` with pydantic-settings; `.env.example` with every variable (see list below)
-- [ ] 0.4 `docker-compose.yml` with `pgvector/pgvector:pg16`, healthcheck, named volume
+- [x] 0.4 `docker-compose.yml` with `pgvector/pgvector:pg16`, healthcheck, named volume
 - [ ] 0.5 SQLAlchemy async engine + session factory (`sentry_ai/db/session.py`)
 - [ ] 0.6 Alembic set up (async), first migration: `CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;`
 - [ ] 0.7 structlog JSON logging with `trace_id` contextvar (`sentry_ai/observability/logging.py`)
