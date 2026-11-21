@@ -3,7 +3,11 @@ name = "sentry-ai"
 version = "0.1.0"
 description = "SENTRY: a single-user, always-on personal AI that runs my daily routine"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pydantic>=2.14,<3",
+    "pydantic-settings>=2.16,<3",
+    "tzdata>=2025.2",
+]
 
 [dependency-groups]
 dev = [
@@ -35,6 +39,7 @@ select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM", "RUF"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
