@@ -49,6 +49,7 @@ GOOGLE_TOKEN_FILE=
 GOOGLE_SENTRY_CALENDAR_ID=
 PERSONA_HONORIFIC=sir
 OPENAI_MODEL_FALLBACKS=
+OPENAI_PRICES=
 DASHBOARD_TOKEN=
 # Phase 7 (desktop agent)
 ACTIVITY_POLL_SECONDS=5
@@ -130,7 +131,7 @@ Tasks
 - [ ] 3.3 Nodes: `load_context`, `route` (structured output), `act`, `tools`, `confirm`, `respond`, `persist`
 - [ ] 3.4 Graph wiring + Postgres checkpointer, thread per (user, local date)
 - [ ] 3.5 Loop guard (6 tool iterations), message trimming
-- [ ] 3.6 `llm_usage` recording on every call
+- [x] 3.6 `llm_usage` recording on every call
 - [ ] 3.7 `sentry_ai/cli.py` — one-shot + interactive REPL mode (`--repl`)
 - [ ] 3.8 Eval set `tests/evals/agent_cases.yaml`: ≥ 30 utterances with expected intent + expected tool calls (e.g. "remind me to submit SE assignment friday 5pm" → capture → create_task with due_at Fri 17:00 IST)
 - [ ] 3.9 `scripts/run_evals.py` — runs cases against real API, prints pass rate (not part of default pytest)

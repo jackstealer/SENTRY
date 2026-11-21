@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,20 @@ def test_reads_environment(clean_env: pytest.MonkeyPatch) -> None:
     assert s.openai_model_fast == "fast-model"
     assert s.openai_model_fallbacks == ["a-model", "b-model"]
     assert s.telegram_allowed_chat_id == 12345
+
+
+def test_prices_parse_per_model(clean_env: pytest.MonkeyPatch) -> None:
+    clean_env.setenv("OPENAI_PRICES", " a-model=0.15/0.60, ft:b:org::1 = 2 / 8 ,")
+    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert s.openai_prices == {
+        "a-model": (Decimal("0.15"), Decimal("0.60")),
+        "ft:b:org::1": (Decimal("2"), Decimal("8")),
+    }
+    assert Settings(_env_file=None, openai_prices="").openai_prices == {}  # type: ignore[call-arg]
+    for bad in ("a-model", "a-model=0.15", "=1/2", "a-model=cheap/0.6"):
+        clean_env.setenv("OPENAI_PRICES", bad)
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None)  # type: ignore[call-arg]
 
 
 def test_blank_values_mean_unset_but_blank_honorific_stays_blank(

@@ -1,5 +1,6 @@
 """Typed settings from the environment and `.env`. The only place config is read (hard rule 1)."""
 
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -26,6 +27,8 @@ class Settings(BaseSettings):
     openai_embedding_model: str = ""
     openai_embedding_dims: int = 1536
     openai_model_fallbacks: Annotated[list[str], NoDecode] = []
+    # USD per 1M tokens, "model=input/output,...": prices live beside the model names
+    openai_prices: Annotated[dict[str, tuple[Decimal, Decimal]], NoDecode] = {}
 
     telegram_bot_token: SecretStr | None = None
     telegram_allowed_chat_id: int | None = None
@@ -73,6 +76,20 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [part.strip() for part in value.split(",") if part.strip()]
         return value
+
+    @field_validator("openai_prices", mode="before")
+    @classmethod
+    def _parse_prices(cls, value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        prices: dict[str, tuple[str, str]] = {}
+        for entry in filter(None, (part.strip() for part in value.split(","))):
+            model, sep, pair = entry.rpartition("=")
+            price_in, slash, price_out = pair.partition("/")
+            if not (sep and slash and model.strip()):
+                raise ValueError(f"OPENAI_PRICES entry {entry!r} should look like model=0.15/0.60")
+            prices[model.strip()] = (price_in.strip(), price_out.strip())
+        return prices
 
     @field_validator("user_tz")
     @classmethod

@@ -7,15 +7,20 @@ model switch can never repeat a tool's side effects.
 
 import time
 from collections.abc import Awaitable, Callable
+from decimal import Decimal
 from functools import lru_cache, partial
 from typing import Any, Literal, TypeVar
 
 import openai
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+from structlog.contextvars import get_contextvars
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from sentry_ai.config import get_settings
+from sentry_ai.db.repositories import SystemRepo
+from sentry_ai.db.schemas import LLMUsageCreate
+from sentry_ai.db.session import get_sessionmaker
 from sentry_ai.observability.logging import get_logger
 
 log = get_logger(__name__)
@@ -36,6 +41,11 @@ MODEL_UNAVAILABLE: tuple[type[Exception], ...] = (
 )
 ATTEMPTS_PER_MODEL = 3
 RETRY_WAIT = wait_exponential(multiplier=1, min=1, max=4)  # 1 s, 2 s (tests set wait_none)
+
+
+UsageSink = Callable[[LLMUsageCreate], Awaitable[None]]
+_PER_MILLION = Decimal(1_000_000)
+_unpriced: set[str] = set()
 
 
 class LLMNotConfiguredError(RuntimeError):
@@ -115,7 +125,7 @@ async def _chat_once(
         _log_failed(purpose, model, started, exc)
         raise
     usage = response.usage
-    _log_completed(
+    await _completed(
         purpose,
         model,
         started,
@@ -144,7 +154,7 @@ async def embed(texts: list[str]) -> list[list[float]]:
         except Exception as exc:
             _log_failed("embed", model, started, exc)
             raise
-        _log_completed(
+        await _completed(
             "embed", model, started, prompt_tokens=response.usage.prompt_tokens, completion_tokens=0
         )
         return [item.embedding for item in response.data]
@@ -156,7 +166,30 @@ def _latency_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
 
 
-def _log_completed(
+def estimate_cost(
+    model: str, prompt_tokens: int | None, completion_tokens: int | None
+) -> Decimal | None:
+    """USD from OPENAI_PRICES; None (and one warning per model) when the price is unknown."""
+    price = get_settings().openai_prices.get(model)
+    if price is None:
+        if model not in _unpriced:
+            _unpriced.add(model)
+            log.warning("llm_price_unknown", model=model)
+        return None
+    cost = (price[0] * (prompt_tokens or 0) + price[1] * (completion_tokens or 0)) / _PER_MILLION
+    return cost.quantize(Decimal("0.000001"))
+
+
+async def store_usage(row: LLMUsageCreate) -> None:
+    """Own short transaction: usage is kept even when the turn that spent it rolls back."""
+    async with get_sessionmaker().begin() as session:
+        await SystemRepo(session, get_settings().user_id).record_llm_usage(row)
+
+
+record_usage: UsageSink = store_usage  # tests swap this for an in-memory list
+
+
+async def _completed(
     purpose: str,
     model: str,
     started: float,
@@ -164,14 +197,30 @@ def _log_completed(
     prompt_tokens: int | None,
     completion_tokens: int | None,
 ) -> None:
+    latency_ms = _latency_ms(started)
+    cost = estimate_cost(model, prompt_tokens, completion_tokens)
     log.info(
         "llm_call_completed",
         purpose=purpose,
         model=model,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
-        latency_ms=_latency_ms(started),
+        latency_ms=latency_ms,
+        est_cost_usd=None if cost is None else float(cost),
     )
+    row = LLMUsageCreate(
+        trace_id=str(get_contextvars().get("trace_id") or "untraced"),
+        model=model,
+        purpose=purpose,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        latency_ms=latency_ms,
+        est_cost_usd=cost,
+    )
+    try:
+        await record_usage(row)
+    except Exception as exc:  # bookkeeping must never fail the user's turn
+        log.warning("llm_usage_not_recorded", error_type=type(exc).__name__)
 
 
 def _log_failed(purpose: str, model: str, started: float, exc: Exception) -> None:

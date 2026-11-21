@@ -1,17 +1,24 @@
 from collections.abc import Iterator
+from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
 import httpx
 import openai
 import pytest
+import sqlalchemy as sa
 from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletion
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from structlog.contextvars import clear_contextvars
 from structlog.testing import capture_logs
 from tenacity import wait_none
 
 from sentry_ai.agent import llm
 from sentry_ai.config import get_settings
+from sentry_ai.db.models import LLMUsage
+from sentry_ai.db.schemas import LLMUsageCreate
+from sentry_ai.observability.logging import bind_trace
 
 COMPLETION = ChatCompletion.model_validate(
     {
@@ -78,6 +85,18 @@ def configured(monkeypatch: pytest.MonkeyPatch) -> Iterator[pytest.MonkeyPatch]:
     _reset_caches()
     yield monkeypatch
     _reset_caches()  # never leak the fake key into later tests (smoke test checks for a key)
+
+
+@pytest.fixture(autouse=True)
+def usage(monkeypatch: pytest.MonkeyPatch) -> list[LLMUsageCreate]:
+    """Collect llm_usage rows in memory instead of writing them to the DB."""
+    rows: list[LLMUsageCreate] = []
+
+    async def sink(row: LLMUsageCreate) -> None:
+        rows.append(row)
+
+    monkeypatch.setattr(llm, "record_usage", sink)
+    return rows
 
 
 def use(monkeypatch: pytest.MonkeyPatch, client: FakeClient) -> FakeClient:
@@ -272,3 +291,64 @@ async def test_embed_retries_but_never_switches_model(fallbacks: pytest.MonkeyPa
     client = use(fallbacks, FakeClient(emb=Flaky()))
     assert await llm.embed(["x"]) == [[0.1, 0.2, 0.3]]
     assert [c["model"] for c in client.embeddings.calls] == ["embed-model", "embed-model"]
+
+
+# --- llm_usage rows and cost (task 3.6) ---------------------------------------------------
+
+
+async def test_every_call_records_usage_with_trace_and_cost(
+    configured: pytest.MonkeyPatch, usage: list[LLMUsageCreate]
+) -> None:
+    configured.setenv("OPENAI_PRICES", "fast-model=0.50/2.00")
+    get_settings.cache_clear()
+    use(configured, FakeClient())
+    bind_trace("trace-abc")
+    try:
+        await llm.chat([{"role": "user", "content": "hi"}], purpose="route")
+        await llm.embed(["x"])
+    finally:
+        clear_contextvars()
+    chat_row, embed_row = usage
+    assert (chat_row.trace_id, chat_row.model, chat_row.purpose) == (
+        "trace-abc",
+        "fast-model",
+        "route",
+    )
+    assert (chat_row.prompt_tokens, chat_row.completion_tokens) == (12, 3)
+    # 12 * 0.50/1M + 3 * 2.00/1M = 0.000012
+    assert chat_row.est_cost_usd == Decimal("0.000012")
+    assert (embed_row.purpose, embed_row.est_cost_usd) == ("embed", None)  # no price set
+
+
+async def test_unknown_price_warns_once_per_model(
+    configured: pytest.MonkeyPatch, usage: list[LLMUsageCreate]
+) -> None:
+    configured.setattr(llm, "_unpriced", set())
+    use(configured, FakeClient())
+    with capture_logs() as logs:
+        for _ in range(2):
+            await llm.chat([{"role": "user", "content": "hi"}], purpose="act")
+    assert [e["model"] for e in logs if e["event"] == "llm_price_unknown"] == ["fast-model"]
+    assert [row.trace_id for row in usage] == ["untraced", "untraced"]
+
+
+async def test_a_usage_write_failure_never_fails_the_call(configured: pytest.MonkeyPatch) -> None:
+    async def broken(row: LLMUsageCreate) -> None:
+        raise ConnectionError("db down")
+
+    configured.setattr(llm, "record_usage", broken)
+    use(configured, FakeClient())
+    with capture_logs() as logs:
+        assert await llm.chat([{"role": "user", "content": "hi"}], purpose="act") is COMPLETION
+    assert any(e["event"] == "llm_usage_not_recorded" for e in logs)
+
+
+async def test_store_usage_commits_its_own_row(engine: AsyncEngine) -> None:
+    row = LLMUsageCreate(trace_id="store-usage-test", model="m", purpose="act", prompt_tokens=1)
+    await llm.store_usage(row)
+    async with AsyncSession(engine) as session, session.begin():
+        found = await session.scalar(
+            sa.select(LLMUsage).where(LLMUsage.trace_id == "store-usage-test")
+        )
+        assert found is not None and found.prompt_tokens == 1
+        await session.execute(sa.delete(LLMUsage).where(LLMUsage.trace_id == "store-usage-test"))
