@@ -9,12 +9,13 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from sentry_ai.config import get_settings
+from sentry_ai.db.models import Base
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-target_metadata = None  # Phase 1: sentry_ai.db.models Base.metadata, for autogenerate
+target_metadata = Base.metadata
 
 
 def database_url() -> str:

@@ -1,9 +1,16 @@
 import asyncio
 
 from alembic import command
+from alembic.autogenerate import compare_metadata
 from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
+
+from sentry_ai.db.models import Base
+
+PHASE_1_TABLES = set(Base.metadata.tables)
 
 
 async def _extensions(engine: AsyncEngine) -> set[str]:
@@ -14,23 +21,66 @@ async def _extensions(engine: AsyncEngine) -> set[str]:
         return {row[0] for row in rows}
 
 
+async def _tables(engine: AsyncEngine) -> set[str]:
+    async with engine.connect() as conn:
+        rows = await conn.execute(
+            text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+        )
+        return {row[0] for row in rows} - {"alembic_version"}
+
+
 async def _revision(engine: AsyncEngine) -> str | None:
     async with engine.connect() as conn:
         return await conn.scalar(text("SELECT max(version_num) FROM alembic_version"))
 
 
-async def test_head_enables_required_extensions(engine: AsyncEngine) -> None:
+async def _migrate(engine: AsyncEngine, cfg: Config, direction: str, target: str) -> None:
+    # env.py runs asyncio.run(), so it needs a thread with no running loop
+    await asyncio.to_thread(getattr(command, direction), cfg, target)
+    # drop pooled connections: asyncpg caches statements for tables that may be gone
+    await engine.dispose()
+
+
+def _head(cfg: Config) -> str:
+    head = ScriptDirectory.from_config(cfg).get_current_head()
+    assert head is not None
+    return head
+
+
+async def test_head_has_extensions_and_every_phase_1_table(
+    engine: AsyncEngine, alembic_cfg: Config
+) -> None:
+    assert await _revision(engine) == _head(alembic_cfg)
     assert await _extensions(engine) == {"vector", "pg_trgm"}
-    assert await _revision(engine) == "0001"
+    assert await _tables(engine) == PHASE_1_TABLES
+
+
+async def test_models_match_migrations(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        diff = await conn.run_sync(
+            lambda sync: compare_metadata(MigrationContext.configure(sync), Base.metadata)
+        )
+    assert diff == []
+
+
+async def test_step_down_one_revision_and_back(engine: AsyncEngine, alembic_cfg: Config) -> None:
+    await _migrate(engine, alembic_cfg, "downgrade", "-1")
+    assert await _tables(engine) == set()
+    assert await _extensions(engine) == {"vector", "pg_trgm"}  # 0001 still applied
+
+    await _migrate(engine, alembic_cfg, "upgrade", "head")
+    assert await _tables(engine) == PHASE_1_TABLES
 
 
 async def test_downgrade_to_base_then_upgrade_round_trips(
     engine: AsyncEngine, alembic_cfg: Config
 ) -> None:
-    await asyncio.to_thread(command.downgrade, alembic_cfg, "base")
+    await _migrate(engine, alembic_cfg, "downgrade", "base")
     assert await _extensions(engine) == set()
+    assert await _tables(engine) == set()
     assert await _revision(engine) is None
 
-    await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+    await _migrate(engine, alembic_cfg, "upgrade", "head")
     assert await _extensions(engine) == {"vector", "pg_trgm"}
-    assert await _revision(engine) == "0001"
+    assert await _tables(engine) == PHASE_1_TABLES
+    assert await _revision(engine) == _head(alembic_cfg)
