@@ -139,10 +139,10 @@ Tasks
 - [x] 3.10 Model fallback in `agent/llm.py`: retry with backoff, then try models from `OPENAI_MODEL_FALLBACKS`; log each fallback (pattern from GYAN1, see REFERENCE_GYAN1.md)
 
 Acceptance
-- [ ] Eval pass rate ≥ 90% on intent and ≥ 85% on exact tool + key args
-- [ ] Confirmation flow works end-to-end in REPL (destructive → ask → yes → executed)
-- [ ] Average cost per simple turn logged and < $0.005
-- [ ] Every turn produces a complete trace in logs (route → tool calls → response)
+- [x] Eval pass rate ≥ 90% on intent and ≥ 85% on exact tool + key args
+- [x] Confirmation flow works end-to-end in REPL (destructive → ask → yes → executed)
+- [x] Average cost per simple turn logged and < $0.005
+- [x] Every turn produces a complete trace in logs (route → tool calls → response)
 
 ---
 
