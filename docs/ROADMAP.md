@@ -134,7 +134,7 @@ Tasks
 - [ ] 3.7 `sentry_ai/cli.py` — one-shot + interactive REPL mode (`--repl`)
 - [ ] 3.8 Eval set `tests/evals/agent_cases.yaml`: ≥ 30 utterances with expected intent + expected tool calls (e.g. "remind me to submit SE assignment friday 5pm" → capture → create_task with due_at Fri 17:00 IST)
 - [ ] 3.9 `scripts/run_evals.py` — runs cases against real API, prints pass rate (not part of default pytest)
-- [ ] 3.10 Model fallback in `agent/llm.py`: retry with backoff, then try models from `OPENAI_MODEL_FALLBACKS`; log each fallback (pattern from GYAN1, see REFERENCE_GYAN1.md)
+- [x] 3.10 Model fallback in `agent/llm.py`: retry with backoff, then try models from `OPENAI_MODEL_FALLBACKS`; log each fallback (pattern from GYAN1, see REFERENCE_GYAN1.md)
 
 Acceptance
 - [ ] Eval pass rate ≥ 90% on intent and ≥ 85% on exact tool + key args

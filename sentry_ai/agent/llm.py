@@ -1,11 +1,19 @@
-"""The only place an OpenAI client exists (CONVENTIONS section 3). Model names come from config."""
+"""The only place an OpenAI client exists (CONVENTIONS section 3). Model names come from config.
+
+Every chat call retries transient errors with exponential backoff, then falls back through
+OPENAI_MODEL_FALLBACKS. Fallback happens per LLM call, never by re-running a tool loop, so a
+model switch can never repeat a tool's side effects.
+"""
 
 import time
-from functools import lru_cache
-from typing import Any, Literal
+from collections.abc import Awaitable, Callable
+from functools import lru_cache, partial
+from typing import Any, Literal, TypeVar
 
+import openai
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from sentry_ai.config import get_settings
 from sentry_ai.observability.logging import get_logger
@@ -13,6 +21,21 @@ from sentry_ai.observability.logging import get_logger
 log = get_logger(__name__)
 
 ModelTier = Literal["fast", "reasoning"]
+T = TypeVar("T")
+
+# may clear up on their own: retry the same model, then move on to the next one
+TRANSIENT: tuple[type[Exception], ...] = (
+    openai.APIConnectionError,  # includes timeouts
+    openai.RateLimitError,
+    openai.InternalServerError,
+)
+# this model is unusable for us (unknown name, no access): skip straight to the next one
+MODEL_UNAVAILABLE: tuple[type[Exception], ...] = (
+    openai.NotFoundError,
+    openai.PermissionDeniedError,
+)
+ATTEMPTS_PER_MODEL = 3
+RETRY_WAIT = wait_exponential(multiplier=1, min=1, max=4)  # 1 s, 2 s (tests set wait_none)
 
 
 class LLMNotConfiguredError(RuntimeError):
@@ -24,8 +47,8 @@ def get_client() -> AsyncOpenAI:
     key = get_settings().openai_api_key
     if key is None:
         raise LLMNotConfiguredError("OPENAI_API_KEY is not set")
-    # shortcut: SDK retries (backoff, 2 attempts) only; the model fallback chain is task 3.10
-    return AsyncOpenAI(api_key=key.get_secret_value(), timeout=30.0, max_retries=2)
+    # max_retries=0: retries are ours (tenacity below), so they never stack with the SDK's
+    return AsyncOpenAI(api_key=key.get_secret_value(), timeout=30.0, max_retries=0)
 
 
 def model_for(tier: ModelTier) -> str:
@@ -36,6 +59,24 @@ def model_for(tier: ModelTier) -> str:
     return name
 
 
+def candidates(tier: ModelTier) -> list[str]:
+    """The tier's model first, then OPENAI_MODEL_FALLBACKS in order, without repeats."""
+    return list(dict.fromkeys([model_for(tier), *get_settings().openai_model_fallbacks]))
+
+
+async def _with_retries(call: Callable[[], Awaitable[T]]) -> T:
+    retrying = AsyncRetrying(
+        stop=stop_after_attempt(ATTEMPTS_PER_MODEL),
+        wait=RETRY_WAIT,
+        retry=retry_if_exception_type(TRANSIENT),
+        reraise=True,
+    )
+    async for attempt in retrying:
+        with attempt:
+            return await call()
+    raise AssertionError("unreachable: tenacity either returns or re-raises")
+
+
 async def chat(
     messages: list[ChatCompletionMessageParam],
     *,
@@ -44,7 +85,26 @@ async def chat(
     **params: Any,
 ) -> ChatCompletion:
     """One chat completion. `purpose` (route, act, respond, ...) tags the usage log line."""
-    model = model_for(tier)
+    models = candidates(tier)
+    for i, model in enumerate(models):
+        try:
+            return await _with_retries(partial(_chat_once, model, messages, purpose, params))
+        except (*TRANSIENT, *MODEL_UNAVAILABLE) as exc:
+            if i + 1 == len(models):
+                raise
+            log.warning(
+                "llm_fallback",
+                purpose=purpose,
+                from_model=model,
+                to_model=models[i + 1],
+                error_type=type(exc).__name__,
+            )
+    raise AssertionError("unreachable: the last model either returns or raises")
+
+
+async def _chat_once(
+    model: str, messages: list[ChatCompletionMessageParam], purpose: str, params: dict[str, Any]
+) -> ChatCompletion:
     started = time.perf_counter()
     try:
         # annotated: **params hides which SDK overload applies, so mypy would infer Any
@@ -66,23 +126,30 @@ async def chat(
 
 
 async def embed(texts: list[str]) -> list[list[float]]:
-    """Embeddings for semantic memory, always at the dimension the schema's vector column uses."""
+    """Embeddings for semantic memory, always at the dimension the schema's vector column uses.
+
+    Retries only: a fallback embedding model would produce vectors that do not compare.
+    """
     settings = get_settings()
     model = settings.openai_embedding_model
     if not model:
         raise LLMNotConfiguredError("OPENAI_EMBEDDING_MODEL is not set")
-    started = time.perf_counter()
-    try:
-        response = await get_client().embeddings.create(
-            model=model, input=texts, dimensions=settings.openai_embedding_dims
+
+    async def once() -> list[list[float]]:
+        started = time.perf_counter()
+        try:
+            response = await get_client().embeddings.create(
+                model=model, input=texts, dimensions=settings.openai_embedding_dims
+            )
+        except Exception as exc:
+            _log_failed("embed", model, started, exc)
+            raise
+        _log_completed(
+            "embed", model, started, prompt_tokens=response.usage.prompt_tokens, completion_tokens=0
         )
-    except Exception as exc:
-        _log_failed("embed", model, started, exc)
-        raise
-    _log_completed(
-        "embed", model, started, prompt_tokens=response.usage.prompt_tokens, completion_tokens=0
-    )
-    return [item.embedding for item in response.data]
+        return [item.embedding for item in response.data]
+
+    return await _with_retries(once)
 
 
 def _latency_ms(started: float) -> int:

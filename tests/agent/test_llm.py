@@ -2,10 +2,13 @@ from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
+import openai
 import pytest
 from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletion
 from structlog.testing import capture_logs
+from tenacity import wait_none
 
 from sentry_ai.agent import llm
 from sentry_ai.config import get_settings
@@ -140,7 +143,7 @@ def test_missing_key_fails_clearly(configured: pytest.MonkeyPatch) -> None:
 def test_client_reads_key_from_config(configured: pytest.MonkeyPatch) -> None:
     client = llm.get_client()
     assert client.api_key == "sk-test-not-real"
-    assert client.max_retries == 2
+    assert client.max_retries == 0  # our tenacity loop retries instead
 
 
 async def test_embed_requests_schema_dimensions(configured: pytest.MonkeyPatch) -> None:
@@ -153,3 +156,119 @@ async def test_embed_requests_schema_dimensions(configured: pytest.MonkeyPatch) 
     assert (call["model"], call["dimensions"]) == ("embed-model", 1536)
     [line] = [entry for entry in logs if entry["event"] == "llm_call_completed"]
     assert (line["purpose"], line["prompt_tokens"]) == ("embed", 4)
+
+
+# --- retries and model fallback (task 3.10) ------------------------------------------------
+
+REQUEST = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+
+
+def status_error(cls: type[openai.APIStatusError], code: int) -> openai.APIStatusError:
+    return cls("boom", response=httpx.Response(code, request=REQUEST), body=None)
+
+
+class Scripted:
+    """Chat endpoint whose outcome per model is a queue of exceptions/responses."""
+
+    def __init__(self, script: dict[str, list[Any]]) -> None:
+        self.script, self.calls = script, []
+
+    async def create(self, **kwargs: Any) -> Any:
+        self.calls.append(kwargs["model"])
+        outcome = self.script[kwargs["model"]].pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+@pytest.fixture
+def fallbacks(configured: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    configured.setenv("OPENAI_MODEL_FALLBACKS", "backup-1, fast-model, backup-2")
+    get_settings.cache_clear()
+    configured.setattr(llm, "RETRY_WAIT", wait_none())
+    return configured
+
+
+def scripted(monkeypatch: pytest.MonkeyPatch, script: dict[str, list[Any]]) -> Scripted:
+    endpoint = Scripted(script)
+    use(monkeypatch, FakeClient(chat=endpoint))  # type: ignore[arg-type]
+    return endpoint
+
+
+def test_candidates_start_with_the_tier_model_without_repeats(
+    fallbacks: pytest.MonkeyPatch,
+) -> None:
+    assert llm.candidates("fast") == ["fast-model", "backup-1", "backup-2"]
+    assert llm.candidates("reasoning") == ["reasoning-model", "backup-1", "fast-model", "backup-2"]
+
+
+async def test_transient_errors_are_retried_on_the_same_model(
+    fallbacks: pytest.MonkeyPatch,
+) -> None:
+    endpoint = scripted(
+        fallbacks,
+        {
+            "fast-model": [
+                openai.APIConnectionError(request=REQUEST),
+                status_error(openai.RateLimitError, 429),
+                COMPLETION,
+            ]
+        },
+    )
+    assert await llm.chat([{"role": "user", "content": "hi"}], purpose="route") is COMPLETION
+    assert endpoint.calls == ["fast-model"] * 3
+
+
+async def test_after_three_failures_the_next_model_is_tried(fallbacks: pytest.MonkeyPatch) -> None:
+    down = [status_error(openai.InternalServerError, 503) for _ in range(3)]
+    endpoint = scripted(fallbacks, {"fast-model": down, "backup-1": [COMPLETION]})
+    with capture_logs() as logs:
+        await llm.chat([{"role": "user", "content": "hi"}], purpose="act")
+    assert endpoint.calls == ["fast-model"] * 3 + ["backup-1"]
+    [line] = [e for e in logs if e["event"] == "llm_fallback"]
+    assert (line["from_model"], line["to_model"], line["error_type"]) == (
+        "fast-model", "backup-1", "InternalServerError",
+    )  # fmt: skip
+
+
+async def test_an_unknown_model_is_skipped_without_retrying(fallbacks: pytest.MonkeyPatch) -> None:
+    endpoint = scripted(
+        fallbacks,
+        {"fast-model": [status_error(openai.NotFoundError, 404)], "backup-1": [COMPLETION]},
+    )
+    await llm.chat([{"role": "user", "content": "hi"}], purpose="act")
+    assert endpoint.calls == ["fast-model", "backup-1"]
+
+
+async def test_a_bad_request_is_ours_so_it_is_not_retried_anywhere(
+    fallbacks: pytest.MonkeyPatch,
+) -> None:
+    endpoint = scripted(fallbacks, {"fast-model": [status_error(openai.BadRequestError, 400)]})
+    with pytest.raises(openai.BadRequestError):
+        await llm.chat([{"role": "user", "content": "hi"}], purpose="act")
+    assert endpoint.calls == ["fast-model"]
+
+
+async def test_when_every_model_fails_the_last_error_is_raised(
+    fallbacks: pytest.MonkeyPatch,
+) -> None:
+    gone = {m: [status_error(openai.NotFoundError, 404)] for m in ("fast-model", "backup-1")}
+    endpoint = scripted(
+        fallbacks, gone | {"backup-2": [status_error(openai.PermissionDeniedError, 403)]}
+    )
+    with pytest.raises(openai.PermissionDeniedError):
+        await llm.chat([{"role": "user", "content": "hi"}], purpose="act")
+    assert endpoint.calls == ["fast-model", "backup-1", "backup-2"]
+
+
+async def test_embed_retries_but_never_switches_model(fallbacks: pytest.MonkeyPatch) -> None:
+    class Flaky(FakeEndpoint):
+        async def create(self, **kwargs: Any) -> Any:
+            self.calls.append(kwargs)
+            if len(self.calls) == 1:
+                raise openai.APIConnectionError(request=REQUEST)
+            return EMBEDDING
+
+    client = use(fallbacks, FakeClient(emb=Flaky()))
+    assert await llm.embed(["x"]) == [[0.1, 0.2, 0.3]]
+    assert [c["model"] for c in client.embeddings.calls] == ["embed-model", "embed-model"]
