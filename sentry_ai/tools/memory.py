@@ -65,7 +65,9 @@ class SetPreferenceArgs(ToolArgs):
 async def set_preference(args: SetPreferenceArgs, ctx: ToolContext) -> ToolResult:
     """Save a structured preference the planner enforces in code (DATA_MODEL section 7).
 
-    E.g. "no tasks before 7" -> no_tasks_before "07:00". Free-form facts go to remember.
+    E.g. "no tasks before 7" -> no_tasks_before "07:00". Windows (quiet_hours,
+    deep_work_window) take an object {"start": "HH:MM", "end": "HH:MM"}. If the user gives
+    only one end of a window, ask for the other; never guess it. Free-form facts go to remember.
     """
     try:
         value = validate_preference(args.key, args.value)
@@ -120,7 +122,11 @@ async def _forget_preview(args: ForgetArgs, ctx: ToolContext) -> str | ToolResul
 
 @tool(ToolTier.DESTRUCTIVE, ForgetArgs, preview=_forget_preview)
 async def forget(args: ForgetArgs, ctx: ToolContext) -> ToolResult:
-    """Permanently delete one memory, by id or by the closest match to `query`."""
+    """Permanently delete one memory, by id or by the closest match to `query`.
+
+    Call it straight away: SENTRY shows the user what will happen and asks them to confirm
+    before anything changes. Never ask "shall I?" yourself first.
+    """
     target = await _target(args, ctx)
     if isinstance(target, ToolResult):
         return target

@@ -41,10 +41,11 @@ class CreateReminderArgs(ToolArgs):
 
 @tool(ToolTier.WRITE, CreateReminderArgs)
 async def create_reminder(args: CreateReminderArgs, ctx: ToolContext) -> ToolResult:
-    """Remind the user of something at a time ("remind me to call mom at 7pm").
+    """A plain nudge at a moment, with nothing to track afterwards ("remind me to call mom
+    at 7pm", "ping me at 4 to stretch").
 
-    For a task with a deadline, prefer create_task with remind_before_min. Times must be in
-    the future.
+    Something to get done by a deadline (submit, finish, pay, prepare) is a task instead:
+    create_task with due_at and remind_before_min. Times must be in the future.
     """
     data = ReminderCreate.model_validate(args.model_dump())
     if data.target_id is not None and await _lookup(ctx, data.target_kind)(data.target_id) is None:

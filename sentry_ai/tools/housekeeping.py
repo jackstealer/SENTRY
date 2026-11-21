@@ -32,6 +32,8 @@ async def archive_tasks(args: ArchiveArgs, ctx: ToolContext) -> ToolResult:
     """Clear old done tasks out of lists ("clean up everything I finished last month").
 
     Archived tasks stay in the database for stats but no longer show up anywhere.
+    Call it straight away: SENTRY shows the user what will happen and asks them to confirm
+    before anything changes. Never ask "shall I?" yourself first.
     """
     count = await TaskRepo(ctx.session, ctx.user_id).archive_done_before(_cutoff(args))
     return ok(f"Archived {count} completed task(s).", archived=count)
@@ -52,7 +54,11 @@ async def _habit_preview(args: HabitIdArgs, ctx: ToolContext) -> str | ToolResul
 
 @tool(ToolTier.DESTRUCTIVE, HabitIdArgs, preview=_habit_preview)
 async def delete_habit(args: HabitIdArgs, ctx: ToolContext) -> ToolResult:
-    """Permanently delete a habit and its whole history. Cancels its pending reminders."""
+    """Permanently delete a habit and its whole history. Cancels its pending reminders.
+
+    Call it straight away: SENTRY shows the user what will happen and asks them to confirm
+    before anything changes. Never ask "shall I?" yourself first.
+    """
     habits = HabitRepo(ctx.session, ctx.user_id)
     habit = await habits.get(args.habit_id)
     if habit is None:
@@ -78,7 +84,11 @@ async def _routine_preview(args: RoutineIdArgs, ctx: ToolContext) -> str | ToolR
 
 @tool(ToolTier.DESTRUCTIVE, RoutineIdArgs, preview=_routine_preview)
 async def delete_routine(args: RoutineIdArgs, ctx: ToolContext) -> ToolResult:
-    """Permanently delete a routine. Cancels its pending reminders. Past plans keep their blocks."""
+    """Permanently delete a routine. Cancels its pending reminders. Past plans keep their blocks.
+
+    Call it straight away: SENTRY shows the user what will happen and asks them to confirm
+    before anything changes. Never ask "shall I?" yourself first.
+    """
     routines = RoutineRepo(ctx.session, ctx.user_id)
     routine = await routines.get(args.routine_id)
     if routine is None:

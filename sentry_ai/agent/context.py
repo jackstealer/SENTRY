@@ -13,10 +13,12 @@ from langgraph.runtime import Runtime
 from sentry_ai.agent.deps import AgentDeps
 from sentry_ai.agent.state import AgentState
 from sentry_ai.config import get_settings
-from sentry_ai.db.repositories import MemoryRepo, PreferenceRepo
+from sentry_ai.db.repositories import MemoryRepo, PreferenceRepo, TaskRepo
+from sentry_ai.db.repositories.tasks import OPEN_STATUSES
 from sentry_ai.observability.logging import get_logger
 from sentry_ai.services.time import to_local
 from sentry_ai.tools.query import DayArgs, get_today_overview
+from sentry_ai.tools.tasks import view
 
 log = get_logger(__name__)
 
@@ -47,8 +49,18 @@ def _section(title: str, lines: list[str], empty: str = "none") -> str:
     return f"{title}: {body}"
 
 
-def render_snapshot(overview: dict[str, Any]) -> str:
-    """get_today_overview's data as compact lines, with ids so tools can be called directly."""
+def _task_line(t: dict[str, Any]) -> str:
+    due = f", due {clock12(t['due_at'])} {t['due_at'][:10]}" if t["due_at"] else ""
+    size = f", ~{t['estimate_min']} min" if t.get("estimate_min") else ""
+    return f"#{t['id']} {t['title']} (p{t['priority']}{due}{size})"
+
+
+def render_snapshot(overview: dict[str, Any], undated: list[dict[str, Any]] | None = None) -> str:
+    """get_today_overview's data as compact lines, with ids so tools can be called directly.
+
+    `undated` adds open tasks without a due date: the overview leaves them out, and without
+    them "plan my evening" looks like there is nothing to plan.
+    """
     fixed = [
         f"{clock12(b['start_at'])}-{clock12(b['end_at'])} {b['title']}"
         for b in overview["fixed_blocks"]
@@ -67,10 +79,7 @@ def render_snapshot(overview: dict[str, Any]) -> str:
         if plan
         else []
     )
-    tasks = []
-    for t in overview["tasks_due"]:
-        due = f", due {clock12(t['due_at'])} {t['due_at'][:10]}" if t["due_at"] else ""
-        tasks.append(f"#{t['id']} {t['title']} (p{t['priority']}{due})")
+    tasks = [_task_line(t) for t in overview["tasks_due"]]
     habits = [
         f"#{h['habit_id']} {h['name']}"
         + (f" at {clock12(h['preferred_at'])}" if h["preferred_at"] else "")
@@ -87,6 +96,7 @@ def render_snapshot(overview: dict[str, Any]) -> str:
             _section(f"Confirmed plan #{plan['plan_id']}" if plan else "Plan", plan_lines,
                      empty="no confirmed plan"),
             _section("Tasks due or overdue", tasks),
+            _section("Open tasks without a due date", [_task_line(t) for t in undated or []]),
             _section("Habits due", habits),
             _section("Pending reminders", reminders),
         ]
@@ -121,6 +131,8 @@ async def load_context(state: AgentState, runtime: Runtime[AgentDeps]) -> dict[s
     async with deps.sessions() as session:
         ctx = deps.tool_context(session, user_id=user_id, trace_id=state["trace_id"])
         overview = await get_today_overview.run(DayArgs(), ctx)
+        open_tasks = await TaskRepo(session, user_id).query(status=OPEN_STATUSES, limit=50)
+        undated = [view(t) for t in open_tasks if t.due_at is None]
         prefs = await PreferenceRepo(session, user_id).all()
         memories = await _memories(_last_user_text(state), ctx.session, deps, user_id)
     settings = get_settings()
@@ -134,7 +146,7 @@ async def load_context(state: AgentState, runtime: Runtime[AgentDeps]) -> dict[s
         "date": f"{now:%d %b %Y}".lstrip("0"),
         "preferences_block": render_preferences(prefs),
         "memories_block": render_memories(memories),
-        "today_snapshot": render_snapshot(overview.data),
+        "today_snapshot": render_snapshot(overview.data, undated),
     }
     return {"context": context, "memories": memories, "tool_calls_count": 0}
 

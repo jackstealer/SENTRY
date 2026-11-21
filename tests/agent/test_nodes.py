@@ -258,3 +258,16 @@ async def test_persist_logs_the_turn(deps, session) -> None:
         ("assistant", "Added."),
     ]
     assert episodes[0].metadata["intent"] == "capture"
+
+
+async def test_snapshot_lists_open_tasks_without_a_due_date(session, deps) -> None:
+    tasks = TaskRepo(session, USER)
+    reading = await tasks.create(TaskCreate(title="Read OS chapter 4", estimate_min=45))
+    done = await tasks.create(TaskCreate(title="Old thing"))
+    await tasks.set_status(done.id, "done", NOW)
+    out = await load_context(state(), rt(deps))
+    snapshot = out["context"]["today_snapshot"]
+    assert (
+        f"Open tasks without a due date: #{reading.id} Read OS chapter 4 (p2, ~45 min)" in snapshot
+    )
+    assert "Old thing" not in snapshot

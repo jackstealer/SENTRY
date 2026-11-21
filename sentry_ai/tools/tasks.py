@@ -54,10 +54,12 @@ class CreateTaskArgs(ToolArgs):
 
 @tool(ToolTier.WRITE, CreateTaskArgs)
 async def create_task(args: CreateTaskArgs, ctx: ToolContext) -> ToolResult:
-    """Add a one-off to-do, e.g. "submit SE assignment friday 5pm".
+    """Add a one-off to-do: anything the user has to get done, usually by a deadline.
 
-    Set remind_before_min to get a reminder before due_at. Not for repeating things: use
-    create_habit or create_routine for those.
+    Use this even when they say "remind me to submit/finish/pay/prepare X by Friday 5pm":
+    set due_at, and remind_before_min (60 unless they said otherwise) for the reminder.
+    Not for repeating things (create_habit, create_routine), and not for a plain nudge at a
+    moment with nothing to get done (create_reminder).
     """
     if args.remind_before_min is not None and args.due_at is None:
         return fail("invalid_args", "A reminder needs due_at; set it or drop remind_before_min.")

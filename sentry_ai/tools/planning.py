@@ -69,8 +69,10 @@ class ProposeArgs(ToolArgs):
 async def propose_day_plan(args: ProposeArgs, ctx: ToolContext) -> ToolResult:
     """Draft a day plan: routines and calendar stay put; tasks and habits fill the free time.
 
-    You decide what matters (task_order, focus); the planner decides the times, so never
-    invent timestamps yourself. Show the draft, then confirm_day_plan if the user agrees.
+    Call it straight away for "plan my day/evening/tomorrow": it already loads every open
+    task (with or without a due date), routine, habit and calendar event, so don't look them
+    up first. You decide what matters (task_order, focus); the planner decides the times, so
+    never invent timestamps yourself. Show the draft, then confirm_day_plan if the user agrees.
     """
     day = args.date or ctx.today
     if day < ctx.today:
