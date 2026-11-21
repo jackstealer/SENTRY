@@ -5,6 +5,7 @@ from collections import Counter
 import pytest
 
 from sentry_ai.agent.evals import (
+    Call,
     EvalCase,
     Observed,
     ToolExpect,
@@ -87,17 +88,21 @@ EXPECT = TurnExpect(
 
 
 def test_expected_tools_with_extra_reads_pass() -> None:
-    seen = Observed("checkin", [("find_task", {"query": "SE"}), ("complete_task", {"task_id": 7})])
+    seen = Observed(
+        "checkin", [Call("find_task", {"query": "SE"}), Call("complete_task", {"task_id": 7})]
+    )
     score = score_turn(EXPECT, seen, {"tasks.0": 7})
     assert score.intent_ok and score.tools_ok
 
 
 def test_wrong_args_unexpected_writes_and_confirmation_are_problems() -> None:
     refs = {"tasks.0": 7}
-    wrong = score_turn(EXPECT, Observed("capture", [("complete_task", {"task_id": 8})]), refs)
+    wrong = score_turn(EXPECT, Observed("capture", [Call("complete_task", {"task_id": 8})]), refs)
     assert not wrong.intent_ok and not wrong.tools_ok
     extra = score_turn(
-        EXPECT, Observed("checkin", [("complete_task", {"task_id": 7}), ("create_task", {})]), refs
+        EXPECT,
+        Observed("checkin", [Call("complete_task", {"task_id": 7}), Call("create_task", {})]),
+        refs,
     )
     assert extra.problems == ["unexpected call to create_task"]
     asked = score_turn(
@@ -115,8 +120,25 @@ def test_alternative_argument_sets() -> None:
         ])],
     )  # fmt: skip
     refs = {"habits.0": 3}
-    by_name = Observed("checkin", [("log_habit", {"habit_name": "Workout", "status": "done"})])
-    by_id = Observed("checkin", [("log_habit", {"habit_id": 3, "status": "done"})])
-    skipped = Observed("checkin", [("log_habit", {"habit_id": 3, "status": "skipped"})])
+    by_name = Observed("checkin", [Call("log_habit", {"habit_name": "Workout", "status": "done"})])
+    by_id = Observed("checkin", [Call("log_habit", {"habit_id": 3, "status": "done"})])
+    skipped = Observed("checkin", [Call("log_habit", {"habit_id": 3, "status": "skipped"})])
     assert score_turn(expect, by_name, refs).tools_ok and score_turn(expect, by_id, refs).tools_ok
     assert not score_turn(expect, skipped, refs).tools_ok
+
+
+def test_a_rejected_call_is_not_an_unexpected_write() -> None:
+    expect = TurnExpect(
+        intent="preference",
+        tools=[ToolExpect(name="set_preference", args={"key": "quiet_hours"})],
+    )
+    retried = Observed(
+        "preference",
+        [
+            Call("set_preference", {"key": "quiet_hours", "value": "23:30-06:30"}, ok=False),
+            Call("set_preference", {"key": "quiet_hours", "value": {"start": "23:30"}}),
+        ],
+    )
+    assert score_turn(expect, retried, {}).tools_ok
+    twice = Observed("preference", [Call("set_preference", {"key": "quiet_hours"})] * 2)
+    assert score_turn(expect, twice, {}).problems == ["unexpected call to set_preference"]

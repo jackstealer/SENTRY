@@ -72,6 +72,7 @@ class TurnRun:
     observed: Observed
     cost: float | None
     seconds: float
+    errors: list[str] = field(default_factory=list)  # LLM failures seen during the turn
 
 
 @dataclass
@@ -181,18 +182,23 @@ async def _run_turn(
     seconds = time.perf_counter() - started
     after = (await graph.aget_state(config)).values
     new_messages = after["messages"][len(before.get("messages", [])) :]
-    executed = any(e["event"] == "confirmation_executed" for e in logs)
+    pending_ok = next((e.get("ok") for e in logs if e["event"] == "confirmation_executed"), None)
     observed = Observed(
         intent=result.intent,
-        calls=calls_in(new_messages, before.get("pending_confirmation"), executed),
+        calls=calls_in(new_messages, before.get("pending_confirmation"), pending_ok),
         awaiting_confirmation=result.awaiting_confirmation,
         reply=result.reply,
     )
+    errors = [
+        f"{e['event']}: {e.get('model') or ''} {e.get('error_type')} {e.get('status_code') or ''}"
+        for e in logs
+        if e["event"] in ("llm_call_failed", "route_failed", "act_failed")
+    ]
     costs: list[float | None] = [
         e.get("est_cost_usd") for e in logs if e["event"] == "llm_call_completed"
     ]
     cost = None if any(c is None for c in costs) else sum(c or 0.0 for c in costs)
-    return TurnRun(say, score_turn(expect, observed, refs), observed, cost, seconds)
+    return TurnRun(say, score_turn(expect, observed, refs), observed, cost, seconds, errors)
 
 
 def report(runs: list[CaseRun], verbose: bool) -> bool:
@@ -210,6 +216,8 @@ def report(runs: list[CaseRun], verbose: bool) -> bool:
                 print(f"      turn {i}: intent {t.observed.intent!r}, wanted {wanted}")
             for problem in t.score.problems:
                 print(f"      turn {i}: {problem}")
+            for error in t.errors:
+                print(f"      turn {i} {error.strip()}")
             if verbose:
                 print(f"      turn {i} reply: {t.observed.reply}")
     total = len(runs)
@@ -251,6 +259,10 @@ async def main(args: argparse.Namespace) -> int:
 
     llm.record_usage = keep
     cases = [c for c in load_cases() if args.only in c.id]
+    if not get_settings().openai_embedding_model:  # e.g. Groq: no embeddings, no memories
+        for case in (c for c in cases if c.setup.memories):
+            print(f"SKIP  {case.id:34s} needs OPENAI_EMBEDDING_MODEL (memories)")
+        cases = [c for c in cases if not c.setup.memories]
     engine = get_engine()
     runs = []
     try:

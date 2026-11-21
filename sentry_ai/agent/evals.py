@@ -10,6 +10,7 @@ Argument matchers in `expect.tools[].args`:
     {ref: tasks.0}       the id of the first task created by `setup`
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from pathlib import Path
@@ -155,12 +156,19 @@ def load_cases(path: Path = CASES_FILE) -> list[EvalCase]:
 # --- scoring -------------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class Call:
+    name: str
+    args: dict[str, Any]
+    ok: bool = True  # False when the tool rejected the call: nothing changed
+
+
 @dataclass
 class Observed:
     """What actually happened in one turn."""
 
     intent: str | None
-    calls: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+    calls: list[Call] = field(default_factory=list)
     awaiting_confirmation: bool = False
     reply: str = ""
 
@@ -218,35 +226,36 @@ def arg_matches(spec: Any, actual: Any, refs: dict[str, int]) -> bool:
     return same(spec, actual)
 
 
-def call_matches(expect: ToolExpect, name: str, args: dict[str, Any], refs: dict[str, int]) -> bool:
-    return name == expect.name and any(
-        all(arg_matches(spec, args.get(key), refs) for key, spec in option.items())
+def call_matches(expect: ToolExpect, call: Call, refs: dict[str, int]) -> bool:
+    return call.name == expect.name and any(
+        all(arg_matches(spec, call.args.get(key), refs) for key, spec in option.items())
         for option in expect.alternatives()
     )
 
 
 def score_turn(expect: TurnExpect, seen: Observed, refs: dict[str, int]) -> TurnScore:
-    """Expected tools must appear in order with matching key args; extra reads are fine, an
-    unexpected write or destructive call is not."""
+    """Expected tools must appear in order with matching key args; extra reads are fine, and so
+    are rejected calls (nothing changed). An unexpected write that went through is not."""
     problems: list[str] = []
     matched: set[int] = set()
     position = 0
     for wanted in expect.tools:
-        hit = next(
-            (i for i in range(position, len(seen.calls))
-             if call_matches(wanted, *seen.calls[i], refs)),
-            None,
-        )  # fmt: skip
+        later = [i for i in range(position, len(seen.calls))
+                 if call_matches(wanted, seen.calls[i], refs)]  # fmt: skip
+        # prefer the attempt that went through over a rejected one with the same args
+        hit = next((i for i in later if seen.calls[i].ok), later[0] if later else None)
         if hit is None:
-            got = [f"{n}({a})" for n, a in seen.calls] or ["no tool calls"]
+            got = [f"{c.name}({c.args}){'' if c.ok else ' [rejected]'}" for c in seen.calls]
+            got = got or ["no tool calls"]
             problems.append(f"expected {wanted.name}({wanted.args}); got {'; '.join(got)}")
         else:
             matched.add(hit)
             position = hit + 1
-    for i, (name, _args) in enumerate(seen.calls):
-        tool = TOOLS.get(name)
-        if i not in matched and (tool is None or tool.tier is not ToolTier.READ):
-            problems.append(f"unexpected call to {name}")
+    for i, call in enumerate(seen.calls):
+        tool = TOOLS.get(call.name)
+        writes = tool is None or tool.tier is not ToolTier.READ
+        if i not in matched and writes and call.ok:
+            problems.append(f"unexpected call to {call.name}")
     if expect.confirmation != seen.awaiting_confirmation:
         problems.append(
             "expected a confirmation question" if expect.confirmation else "asked to confirm"
@@ -255,14 +264,23 @@ def score_turn(expect: TurnExpect, seen: Observed, refs: dict[str, int]) -> Turn
 
 
 def calls_in(
-    new_messages: list[Any], pending_before: dict[str, Any] | None, executed_pending: bool
-) -> list[tuple[str, dict[str, Any]]]:
-    """Tool calls made in one turn: the model's own, plus a confirmed call run by run_pending."""
+    new_messages: list[Any], pending_before: dict[str, Any] | None, pending_ok: bool | None
+) -> list[Call]:
+    """Tool calls made in one turn: the model's own, plus a confirmed call run by run_pending
+    (`pending_ok` is that call's result, None when no confirmed call ran)."""
+    results: dict[str, bool] = {}
+    for message in new_messages:
+        call_id = getattr(message, "tool_call_id", None)
+        if call_id:
+            try:
+                results[call_id] = bool(json.loads(str(message.content)).get("ok", True))
+            except (json.JSONDecodeError, AttributeError):
+                results[call_id] = True
     calls = [
-        (call["name"], dict(call["args"]))
+        Call(call["name"], dict(call["args"]), results.get(call.get("id") or "", True))
         for message in new_messages
         for call in getattr(message, "tool_calls", None) or []
     ]
-    if executed_pending and pending_before is not None:
-        calls.append((pending_before["tool"], dict(pending_before["args"])))
+    if pending_ok is not None and pending_before is not None:
+        calls.append(Call(pending_before["tool"], dict(pending_before["args"]), pending_ok))
     return calls

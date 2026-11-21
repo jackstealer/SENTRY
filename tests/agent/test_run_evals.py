@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from sentry_ai.agent import llm
-from sentry_ai.agent.evals import load_cases
+from sentry_ai.agent.evals import Call, load_cases
 
 from .conftest import FakeLLM, fake_embed
 
@@ -30,7 +30,7 @@ async def test_a_passing_case(runner: ModuleType, fake_llm: FakeLLM, engine: Asy
     fake_llm.route("capture").call(("create_task", {"title": "Buy groceries"})).say("Added.")
     run = await runner.run_case(CASES["capture-undated-task"], engine)
     assert run.error is None and run.intent_ok and run.tools_ok
-    assert run.turns[0].observed.calls == [("create_task", {"title": "Buy groceries"})]
+    assert run.turns[0].observed.calls == [Call("create_task", {"title": "Buy groceries"})]
 
 
 async def test_a_confirmed_destructive_call_counts_for_the_yes_turn(
@@ -41,7 +41,7 @@ async def test_a_confirmed_destructive_call_counts_for_the_yes_turn(
     run = await runner.run_case(CASES["manage-archive-done-confirmed"], engine)
     asked, confirmed = run.turns
     assert asked.observed.awaiting_confirmation and asked.score.tools_ok
-    assert confirmed.observed.calls == [("archive_tasks", {"completed_before": "2026-11-23"})]
+    assert confirmed.observed.calls == [Call("archive_tasks", {"completed_before": "2026-11-23"})]
     assert run.intent_ok and run.tools_ok
 
 

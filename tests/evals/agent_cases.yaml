@@ -320,12 +320,13 @@
 - id: pref-remember
   now: "2026-11-23T10:00:00+05:30"
   turns:
-    - say: "remember that I prefer deep work after 9pm"
+    # a plain fact: "I prefer deep work after 9pm" would rightly become a preference instead
+    - say: "remember that my sister's birthday is on 3 March"
       expect:
         intent: preference
         tools:
           - name: remember
-            args: {content: {contains: "deep work"}}
+            args: {content: {contains: "sister"}}
 
 - id: pref-forget-confirmed
   now: "2026-11-23T10:00:00+05:30"
