@@ -352,3 +352,27 @@ async def test_store_usage_commits_its_own_row(engine: AsyncEngine) -> None:
         )
         assert found is not None and found.prompt_tokens == 1
         await session.execute(sa.delete(LLMUsage).where(LLMUsage.trace_id == "store-usage-test"))
+
+
+async def test_a_rejected_temperature_is_dropped_once(fallbacks: pytest.MonkeyPatch) -> None:
+    rejected = openai.BadRequestError(
+        "Unsupported value: 'temperature' does not support 0 with this model.",
+        response=httpx.Response(400, request=REQUEST),
+        body=None,
+    )
+    endpoint = Recording({"fast-model": [rejected, COMPLETION]})
+    use(fallbacks, FakeClient(chat=endpoint))  # type: ignore[arg-type]
+    with capture_logs() as logs:
+        await llm.chat([{"role": "user", "content": "hi"}], purpose="route", temperature=0)
+    assert ["temperature" in kwargs for kwargs in endpoint.kwargs] == [True, False]
+    assert any(e["event"] == "llm_param_dropped" for e in logs)
+
+
+class Recording(Scripted):
+    def __init__(self, script: dict[str, list[Any]]) -> None:
+        super().__init__(script)
+        self.kwargs: list[dict[str, Any]] = []
+
+    async def create(self, **kwargs: Any) -> Any:
+        self.kwargs.append(kwargs)
+        return await super().create(**kwargs)

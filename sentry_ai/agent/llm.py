@@ -115,6 +115,20 @@ async def chat(
 async def _chat_once(
     model: str, messages: list[ChatCompletionMessageParam], purpose: str, params: dict[str, Any]
 ) -> ChatCompletion:
+    try:
+        return await _request(model, messages, purpose, params)
+    except openai.BadRequestError as exc:
+        # some reasoning models accept only their default temperature: drop it, once
+        if "temperature" not in params or "temperature" not in str(exc).lower():
+            raise
+        log.info("llm_param_dropped", purpose=purpose, model=model, param="temperature")
+        rest = {k: v for k, v in params.items() if k != "temperature"}
+        return await _request(model, messages, purpose, rest)
+
+
+async def _request(
+    model: str, messages: list[ChatCompletionMessageParam], purpose: str, params: dict[str, Any]
+) -> ChatCompletion:
     started = time.perf_counter()
     try:
         # annotated: **params hides which SDK overload applies, so mypy would infer Any
