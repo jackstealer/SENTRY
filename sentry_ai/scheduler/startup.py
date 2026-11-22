@@ -9,8 +9,9 @@ from sentry_ai.db.session import get_sessionmaker
 from sentry_ai.interfaces.outbound import LogChannel, OutboundChannel
 from sentry_ai.observability.logging import bind_trace
 from sentry_ai.scheduler import env as job_env
+from sentry_ai.scheduler.daily import schedule_daily_jobs
 from sentry_ai.scheduler.env import JobEnv
-from sentry_ai.scheduler.jobs import routine_materialize, schedule_daily_jobs
+from sentry_ai.scheduler.jobs import routine_materialize
 from sentry_ai.scheduler.reminder_jobs import reconcile
 
 

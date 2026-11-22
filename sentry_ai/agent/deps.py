@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sentry_ai.agent import llm
 from sentry_ai.db.session import get_sessionmaker
 from sentry_ai.services.reminders import NoopReminderScheduler, ReminderScheduler
+from sentry_ai.services.schedules import DailySchedule, NoopDailySchedule
 from sentry_ai.services.time import now_utc
 from sentry_ai.tools.base import Embedder, ToolContext
 
@@ -22,6 +23,7 @@ class AgentDeps:
     # that write (tools, persist) use one block per step, so the DB matches each checkpoint
     sessions: Sessions
     reminders: ReminderScheduler = field(default_factory=NoopReminderScheduler)
+    daily: DailySchedule = field(default_factory=NoopDailySchedule)
     embed: Embedder = llm.embed
     clock: Callable[[], datetime] = now_utc
 
@@ -35,6 +37,7 @@ class AgentDeps:
             session=session,
             confirmed=confirmed,
             reminders=self.reminders,
+            daily=self.daily,
             embed=self.embed,
         )
 

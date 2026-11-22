@@ -170,3 +170,27 @@ async def test_get_preferences_shows_the_latest_value_after_an_update(call):
     result = await call("get_preferences")
     assert result.data["preferences"] == {"quiet_hours": {"start": "00:00", "end": "07:00"}}
     assert result.message == "1 preference(s) set."
+
+
+class RecordingSchedule:
+    def __init__(self) -> None:
+        self.applied: list[dict] = []
+
+    async def apply(self, prefs):  # type: ignore[no-untyped-def]
+        self.applied.append(prefs)
+        return ["morning_brief"]
+
+
+async def test_a_new_wake_time_moves_the_daily_jobs_right_away(make_ctx, session, user_id):
+    schedule = RecordingSchedule()
+    ctx = make_ctx().model_copy(update={"daily": schedule})
+    await PreferenceRepo(session, user_id).set("sleep_time", {"time": "23:30"})
+    result = await execute("set_preference", {"key": "wake_time", "value": "06:30"}, ctx)
+    assert result.ok and result.message.endswith("Rescheduled: morning brief.")
+    assert schedule.applied == [
+        {"sleep_time": {"time": "23:30"}, "wake_time": {"time": "06:30"}}  # all prefs, saved
+    ]
+    quiet = await execute(
+        "set_preference", {"key": "quiet_hours", "value": {"start": "23:00", "end": "07:00"}}, ctx
+    )
+    assert quiet.ok and len(schedule.applied) == 1  # not a schedule key: nothing to move

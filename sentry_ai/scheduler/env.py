@@ -9,6 +9,7 @@ from typing import Any
 from sentry_ai.agent import llm
 from sentry_ai.agent.deps import AgentDeps, Sessions
 from sentry_ai.interfaces.outbound import OutboundChannel
+from sentry_ai.scheduler.daily import ApsDailySchedule
 from sentry_ai.scheduler.reminders import ApsReminderScheduler
 from sentry_ai.services.time import now_utc
 from sentry_ai.tools.base import Embedder
@@ -32,6 +33,7 @@ class JobEnv:
         return AgentDeps(
             sessions=self.sessions,
             reminders=self.reminders,
+            daily=ApsDailySchedule(self.scheduler),
             embed=self.embed or llm.embed,
             clock=self.clock,
         )

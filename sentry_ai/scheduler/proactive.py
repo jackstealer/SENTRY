@@ -10,13 +10,12 @@ from apscheduler.triggers.date import DateTrigger
 
 from sentry_ai.db.repositories import SystemRepo
 from sentry_ai.observability.logging import get_logger
+from sentry_ai.scheduler.daily import PROACTIVE_GRACE_S
 from sentry_ai.scheduler.env import JobEnv
 from sentry_ai.services.quiet_hours import quiet_until, quiet_window
 from sentry_ai.services.time import local_date_of
 
 log = get_logger(__name__)
-
-PROACTIVE_GRACE_S = 2 * 3600  # ARCHITECTURE: if the laptop slept through it, still send once
 
 
 async def send_proactive(

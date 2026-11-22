@@ -156,7 +156,7 @@ Tasks
 - [x] 4.3 Jobs: `routine_materialize`, `morning_brief`, `evening_review`, `weekly_review`, `reminder:*`, `nudge:*`
 - [x] 4.4 `proactive_runs` idempotency + quiet hours enforcement
 - [x] 4.5 `OutboundChannel` interface (`send(text, buttons?)`) with `LogChannel` impl
-- [ ] 4.6 Cron times read from `preferences` (changing a preference reschedules the job)
+- [x] 4.6 Cron times read from `preferences` (changing a preference reschedules the job)
 - [ ] 4.7 `/debug/trigger/{job}` endpoint (dev only)
 - [ ] 4.8 Restart test: schedule reminder → kill process → restart → reminder still fires
 - [x] 4.9 Deterministic fallback: if the LLM is unavailable, morning brief / evening review / reminders still send a plain templated message built from DB data

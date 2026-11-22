@@ -11,11 +11,11 @@ from sentry_ai.agent import llm
 from sentry_ai.db.models import Habit
 from sentry_ai.db.repositories import HabitRepo, ReminderRepo, RoutineRepo
 from sentry_ai.db.schemas import HabitCreate, RoutineCreate
+from sentry_ai.scheduler.daily import schedule_daily_jobs
 from sentry_ai.scheduler.jobs import (
     evening_review,
     morning_brief,
     routine_materialize,
-    schedule_daily_jobs,
     weekly_review,
 )
 from sentry_ai.scheduler.reminder_jobs import fire_reminder
@@ -139,3 +139,19 @@ async def test_daily_jobs_use_preferred_times_and_move_when_they_change(env) -> 
     moved = schedule_daily_jobs(env.scheduler, prefs | {"wake_time": {"time": "07:15"}})
     assert moved == ["morning_brief"]
     assert str(jobs(env.scheduler)["morning_brief"].trigger) == "cron[hour='7', minute='15']"
+
+
+async def test_changing_wake_time_in_chat_moves_the_morning_brief(agent_env, fake_llm) -> None:
+    from sentry_ai.agent.graph import run_turn
+
+    schedule_daily_jobs(agent_env.scheduler, {})
+    assert str(jobs(agent_env.scheduler)["morning_brief"].trigger) == "cron[hour='7', minute='0']"
+    fake_llm.route("preference").call(
+        ("set_preference", {"key": "wake_time", "value": "06:30"})
+    ).say("Done. Morning brief moves to 6:30 AM.")
+    result = await run_turn(
+        agent_env.graph, "wake me at 6:30 from now on", deps=agent_env.agent_deps(),
+        user_id=agent_env.user_id,
+    )  # fmt: skip
+    assert result.reply == "Done. Morning brief moves to 6:30 AM."
+    assert str(jobs(agent_env.scheduler)["morning_brief"].trigger) == "cron[hour='6', minute='30']"

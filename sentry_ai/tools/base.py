@@ -18,6 +18,7 @@ from sentry_ai.services.reminders import (
     ReminderScheduler,
     ReminderService,
 )
+from sentry_ai.services.schedules import DailySchedule, NoopDailySchedule
 from sentry_ai.services.time import local_date_of, to_local
 
 Embedder = Callable[[list[str]], Awaitable[list[list[float]]]]
@@ -61,6 +62,7 @@ class ToolContext(BaseModel):
     session: AsyncSession
     confirmed: bool = False  # True only when re-run after the user confirmed
     reminders: ReminderScheduler = Field(default_factory=NoopReminderScheduler)
+    daily: DailySchedule = Field(default_factory=NoopDailySchedule)
     embed: Embedder = llm.embed
 
     @field_validator("now")

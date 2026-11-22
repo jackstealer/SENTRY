@@ -6,6 +6,7 @@ from sentry_ai.db.enums import MemoryKind
 from sentry_ai.db.repositories import MemoryRepo, PreferenceRepo
 from sentry_ai.db.schemas import MemoryCreate, MemoryDTO
 from sentry_ai.services.preferences import PREFERENCE_SCHEMAS, validate_preference
+from sentry_ai.services.schedules import SCHEDULE_KEYS
 from sentry_ai.tools.base import ToolArgs, ToolContext, ToolResult, ToolTier, fail, ok, tool
 
 # cosine distance; beyond this a "forget X" query is too far from any memory to guess
@@ -73,8 +74,14 @@ async def set_preference(args: SetPreferenceArgs, ctx: ToolContext) -> ToolResul
         value = validate_preference(args.key, args.value)
     except ValueError as exc:
         return fail("invalid_args", str(exc))
-    await PreferenceRepo(ctx.session, ctx.user_id).set(args.key, value)
-    return ok(f"Set {args.key} to {value}.", key=args.key, value=value)
+    prefs = PreferenceRepo(ctx.session, ctx.user_id)
+    await prefs.set(args.key, value)
+    message = f"Set {args.key} to {value}."
+    if args.key in SCHEDULE_KEYS:  # e.g. a new wake_time moves the morning brief right away
+        moved = await ctx.daily.apply(await prefs.all())
+        if moved:
+            message += f" Rescheduled: {', '.join(j.replace('_', ' ') for j in moved)}."
+    return ok(message, key=args.key, value=value)
 
 
 class NoArgs(ToolArgs):
