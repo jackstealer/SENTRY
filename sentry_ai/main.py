@@ -1,4 +1,4 @@
-"""Process entry point: one asyncio loop for the API (scheduler, Telegram join in Phases 4-5).
+"""Process entry point: one asyncio loop for the API and the scheduler (Telegram: Phase 5).
 
 Run with: uv run python -m sentry_ai.main
 """
@@ -10,6 +10,7 @@ import uvicorn
 from sentry_ai.config import Settings, get_settings
 from sentry_ai.interfaces.api.app import create_app
 from sentry_ai.observability.logging import configure_logging, get_logger
+from sentry_ai.scheduler.setup import build_scheduler, running
 
 log = get_logger("sentry_ai.main")  # not __name__: under `python -m` that is "__main__"
 
@@ -26,11 +27,14 @@ async def serve() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     log.info("sentry_starting", env=settings.env, host=settings.api_host, port=settings.api_port)
-    await build_server(settings).serve()
+    async with running(build_scheduler()):
+        await build_server(settings).serve()
 
 
 def main() -> None:
-    asyncio.run(serve())
+    # psycopg (the agent's checkpointer) cannot use Windows' default Proactor loop
+    with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+        runner.run(serve())
 
 
 if __name__ == "__main__":

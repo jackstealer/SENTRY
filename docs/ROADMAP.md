@@ -151,7 +151,7 @@ Acceptance
 Goal: SENTRY starts talking first. Output to CLI/log in this phase; Telegram next.
 
 Tasks
-- [ ] 4.1 `scheduler/setup.py` — AsyncIOScheduler + SQLAlchemyJobStore, started from `main.py`
+- [x] 4.1 `scheduler/setup.py` — AsyncIOScheduler + SQLAlchemyJobStore, started from `main.py`
 - [ ] 4.2 Real `ReminderScheduler` implementation: create/replace/remove jobs in sync with `reminders` rows
 - [ ] 4.3 Jobs: `routine_materialize`, `morning_brief`, `evening_review`, `weekly_review`, `reminder:*`, `nudge:*`
 - [ ] 4.4 `proactive_runs` idempotency + quiet hours enforcement
