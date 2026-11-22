@@ -150,7 +150,7 @@ async def test_confirm_sets_reminders_and_schedules_tasks(
     se_block = next(b for b in plan.blocks if b.title == "SE assignment")
     [reminder] = await ReminderRepo(session, user_id).for_target("plan_block", se_block.id)
     assert reminder.fire_at == datetime(2026, 11, 23, 1, 15, tzinfo=UTC)  # 06:45 IST, 15 min ahead
-    assert reminder.message == "SE assignment at 07:00" and reminder.id in scheduler.jobs
+    assert reminder.message == "SE assignment" and reminder.id in scheduler.jobs
     task = await TaskRepo(session, user_id).get(seeded["se"])
     assert task is not None and task.scheduled_start == se_block.start_at
 

@@ -166,7 +166,7 @@ async def confirm_day_plan(args: ConfirmArgs, ctx: ToolContext) -> ToolResult:
         if block.start_at - lead > ctx.now:
             await reminders.create(
                 ReminderCreate(
-                    message=f"{block.title} at {hhmm(block.start_at)}",
+                    message=block.title,  # the reminder text adds "at 7:00 AM"
                     fire_at=block.start_at - lead,
                     target_kind="plan_block",
                     target_id=block.id,

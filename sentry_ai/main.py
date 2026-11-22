@@ -11,6 +11,7 @@ from sentry_ai.config import Settings, get_settings
 from sentry_ai.interfaces.api.app import create_app
 from sentry_ai.observability.logging import configure_logging, get_logger
 from sentry_ai.scheduler.setup import build_scheduler, running
+from sentry_ai.scheduler.startup import start_jobs
 
 log = get_logger("sentry_ai.main")  # not __name__: under `python -m` that is "__main__"
 
@@ -27,7 +28,8 @@ async def serve() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     log.info("sentry_starting", env=settings.env, host=settings.api_host, port=settings.api_port)
-    async with running(build_scheduler()):
+    async with running(build_scheduler()) as scheduler:
+        await start_jobs(scheduler)
         await build_server(settings).serve()
 
 

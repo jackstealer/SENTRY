@@ -40,3 +40,20 @@ async def test_jobs_are_stored_in_postgres_not_in_memory(
         )
     async with running(pg_schedulers()) as second:  # a fresh scheduler on the same table
         assert [job.id for job in second.get_jobs()] == ["kept"]
+
+
+async def test_start_jobs_installs_the_env_and_reconciles(
+    pg_schedulers: Callable[[], AsyncIOScheduler],
+) -> None:
+    from sentry_ai.interfaces.outbound import LogChannel
+    from sentry_ai.scheduler import env as job_env
+    from sentry_ai.scheduler.startup import start_jobs
+
+    async with running(pg_schedulers()) as scheduler:
+        installed = await start_jobs(scheduler)
+        try:
+            assert job_env.current() is installed
+            assert isinstance(installed.channel, LogChannel)
+            assert installed.reminders.scheduler is scheduler
+        finally:
+            job_env.install(None)

@@ -152,7 +152,7 @@ Goal: SENTRY starts talking first. Output to CLI/log in this phase; Telegram nex
 
 Tasks
 - [x] 4.1 `scheduler/setup.py` — AsyncIOScheduler + SQLAlchemyJobStore, started from `main.py`
-- [ ] 4.2 Real `ReminderScheduler` implementation: create/replace/remove jobs in sync with `reminders` rows
+- [x] 4.2 Real `ReminderScheduler` implementation: create/replace/remove jobs in sync with `reminders` rows
 - [ ] 4.3 Jobs: `routine_materialize`, `morning_brief`, `evening_review`, `weekly_review`, `reminder:*`, `nudge:*`
 - [ ] 4.4 `proactive_runs` idempotency + quiet hours enforcement
 - [x] 4.5 `OutboundChannel` interface (`send(text, buttons?)`) with `LogChannel` impl
