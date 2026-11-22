@@ -1,4 +1,4 @@
-"""FastAPI app factory: health check now; debug, webhook and dashboard routes in later phases."""
+"""FastAPI app factory: health check and dev-only debug routes; webhook and dashboard later."""
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -10,7 +10,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from sentry_ai.config import get_settings
 from sentry_ai.db.session import get_engine
+from sentry_ai.interfaces.api import debug
 from sentry_ai.observability.logging import bind_trace, get_logger
 
 log = get_logger(__name__)
@@ -46,4 +48,6 @@ def create_app() -> FastAPI:
             return JSONResponse({"status": "degraded", "db": "error"}, status_code=503)
         return JSONResponse({"status": "ok", "db": "ok"})
 
+    if get_settings().env == "dev":
+        app.include_router(debug.router)
     return app
