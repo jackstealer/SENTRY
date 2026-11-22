@@ -31,6 +31,7 @@ class AgentState(TypedDict, total=False):
     pending_confirmation: PendingConfirmation | None
     tool_calls_count: int  # loop guard: tool rounds this turn
     final_response: str | None
+    degraded: bool  # the LLM failed this turn: proactive jobs then send a plain template
 
 
 def turn_input(
@@ -51,4 +52,5 @@ def turn_input(
         intent=None,
         tool_calls_count=0,
         final_response=None,
+        degraded=False,
     )

@@ -59,9 +59,16 @@ async def _target(env: JobEnv, session: AsyncSession, reminder: ReminderDTO, tod
         habits = HabitRepo(session, env.user_id)
         habit = await habits.get(ref)
         logged = habit is not None and bool(await habits.logs_between(ref, today, today))
-        return Target(habit is None or habit.archived_at is not None or logged, None)
+        closed = habit is None or habit.archived_at is not None or logged
+        return Target(closed, _starts(reminder, None if habit is None else habit.remind_before_min))
     routine = await RoutineRepo(session, env.user_id).get(ref)
-    return Target(routine is None or routine.archived_at is not None, None)
+    closed = routine is None or routine.archived_at is not None
+    return Target(closed, _starts(reminder, None if routine is None else routine.remind_before_min))
+
+
+def _starts(reminder: ReminderDTO, lead: int | None) -> datetime | None:
+    """Routine/habit reminders fire `lead` minutes before the thing itself starts."""
+    return None if lead is None else reminder.fire_at + timedelta(minutes=lead)
 
 
 def reminder_text(reminder: ReminderDTO, when: datetime | None, now: datetime) -> str:

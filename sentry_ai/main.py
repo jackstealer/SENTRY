@@ -7,6 +7,7 @@ import asyncio
 
 import uvicorn
 
+from sentry_ai.agent.graph import build_graph, postgres_checkpointer
 from sentry_ai.config import Settings, get_settings
 from sentry_ai.interfaces.api.app import create_app
 from sentry_ai.observability.logging import configure_logging, get_logger
@@ -28,8 +29,8 @@ async def serve() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     log.info("sentry_starting", env=settings.env, host=settings.api_host, port=settings.api_port)
-    async with running(build_scheduler()) as scheduler:
-        await start_jobs(scheduler)
+    async with running(build_scheduler()) as scheduler, postgres_checkpointer() as saver:
+        await start_jobs(scheduler, graph=build_graph(saver))
         await build_server(settings).serve()
 
 

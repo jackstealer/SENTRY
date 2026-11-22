@@ -271,3 +271,13 @@ async def test_snapshot_lists_open_tasks_without_a_due_date(session, deps) -> No
         f"Open tasks without a due date: #{reading.id} Read OS chapter 4 (p2, ~45 min)" in snapshot
     )
     assert "Old thing" not in snapshot
+
+
+async def test_a_scheduled_turn_skips_routing_and_leaves_a_pending_action_alone(
+    fake_llm: FakeLLM, deps
+) -> None:
+    proactive = state(mode="proactive", trigger="evening_review", pending_confirmation=PENDING)
+    out = await nodes.route(proactive, rt(deps))
+    assert out == {"intent": "review"}  # no LLM call, pending untouched
+    assert fake_llm.calls == []
+    assert nodes.after_route(proactive | out) == "act"  # never runs the user's pending action

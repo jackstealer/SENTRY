@@ -89,3 +89,28 @@ def env(
     job_env.install(installed)
     yield installed
     job_env.install(None)
+
+
+@pytest.fixture
+def fake_llm(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    from sentry_ai.agent import llm
+
+    from ..fakes import FakeLLM
+
+    fake = FakeLLM()
+    monkeypatch.setattr(llm, "chat", fake)
+    return fake
+
+
+@pytest.fixture
+def agent_env(env: JobEnv) -> JobEnv:
+    """The job env plus a real agent graph (in-memory checkpoints) and a fake embedder."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from sentry_ai.agent.graph import build_graph
+
+    from ..fakes import fake_embed
+
+    env.graph = build_graph(InMemorySaver())
+    env.embed = fake_embed
+    return env

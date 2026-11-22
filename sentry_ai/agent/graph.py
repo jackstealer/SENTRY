@@ -79,6 +79,7 @@ class TurnResult:
     reply: str
     intent: str | None
     awaiting_confirmation: bool
+    degraded: bool = False  # the LLM was unavailable for this turn
 
 
 async def run_turn(
@@ -109,4 +110,5 @@ async def run_turn(
         reply=state.get("final_response") or "",
         intent=state.get("intent"),
         awaiting_confirmation=state.get("pending_confirmation") is not None,
+        degraded=bool(state.get("degraded")),
     )

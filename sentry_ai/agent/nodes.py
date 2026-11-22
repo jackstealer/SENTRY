@@ -36,6 +36,12 @@ log = get_logger(__name__)
 
 MAX_TOOL_ROUNDS = 6  # loop guard (ARCHITECTURE section 3)
 FAST_INTENTS: frozenset[Intent] = frozenset({"capture", "checkin", "smalltalk"})
+# TOOLS_SPEC section 5: morning brief -> query set; evening/weekly review -> review set
+PROACTIVE_INTENTS: dict[str, Intent] = {
+    "morning_brief": "query",
+    "evening_review": "review",
+    "weekly_review": "review",
+}
 TOOL_RESULT_CHARS = 2000  # what one tool result may add to the next prompt
 
 
@@ -74,6 +80,10 @@ def _expired(pending: PendingConfirmation, now: datetime) -> bool:
 
 async def route(state: AgentState, runtime: Runtime[AgentDeps]) -> dict[str, Any]:
     """Classify the turn (FAST model, structured output) and settle any pending confirmation."""
+    if state.get("mode") == "proactive":  # scheduled turns: intent is fixed, no LLM call
+        intent = PROACTIVE_INTENTS.get(state.get("trigger") or "", "other")
+        log.info("route_decided", intent=intent, confirmation="none", proactive=True)
+        return {"intent": intent}  # a pending confirmation is left for the user to answer
     pending = state.get("pending_confirmation")
     if pending is not None and _expired(pending, runtime.context.clock()):
         log.info("confirmation_expired", tool=pending["tool"])
@@ -102,6 +112,8 @@ async def route(state: AgentState, runtime: Runtime[AgentDeps]) -> dict[str, Any
 
 
 def after_route(state: AgentState) -> Literal["run_pending", "act"]:
+    if state.get("mode") == "proactive":  # never run the user's pending action unprompted
+        return "act"
     return "run_pending" if state.get("pending_confirmation") else "act"
 
 
@@ -133,10 +145,11 @@ async def act(state: AgentState, runtime: Runtime[AgentDeps]) -> dict[str, Any]:
             temperature=0.3,
         )
     except llm.LLMNotConfiguredError as exc:
-        return _reply(f"I'm not set up to think yet: {exc}. Add it to .env.")
+        return _reply(f"I'm not set up to think yet: {exc}. Add it to .env.") | {"degraded": True}
     except openai.OpenAIError as exc:
         log.error("act_failed", error_type=type(exc).__name__)
-        return _reply(f"I can't reach my language model right now (trace {state['trace_id']}).")
+        text = f"I can't reach my language model right now (trace {state['trace_id']})."
+        return _reply(text) | {"degraded": True}
     return {"messages": [from_openai(response.choices[0].message)]}
 
 

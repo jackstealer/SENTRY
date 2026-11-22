@@ -6,10 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from sentry_ai.agent import llm
 from sentry_ai.agent.deps import AgentDeps, Sessions
 from sentry_ai.interfaces.outbound import OutboundChannel
 from sentry_ai.scheduler.reminders import ApsReminderScheduler
 from sentry_ai.services.time import now_utc
+from sentry_ai.tools.base import Embedder
 
 
 @dataclass
@@ -20,13 +22,19 @@ class JobEnv:
     user_id: str
     clock: Callable[[], datetime] = now_utc
     graph: Any = None  # the compiled agent graph, for proactive turns
+    embed: Embedder | None = None  # None = llm.embed, looked up when used (tests swap it)
 
     @property
     def reminders(self) -> ApsReminderScheduler:
         return ApsReminderScheduler(self.scheduler)
 
     def agent_deps(self) -> AgentDeps:
-        return AgentDeps(sessions=self.sessions, reminders=self.reminders, clock=self.clock)
+        return AgentDeps(
+            sessions=self.sessions,
+            reminders=self.reminders,
+            embed=self.embed or llm.embed,
+            clock=self.clock,
+        )
 
 
 _env: JobEnv | None = None

@@ -55,5 +55,8 @@ async def test_start_jobs_installs_the_env_and_reconciles(
             assert job_env.current() is installed
             assert isinstance(installed.channel, LogChannel)
             assert installed.reminders.scheduler is scheduler
+            assert {"morning_brief", "evening_review", "weekly_review", "routine_materialize"} <= {
+                job.id for job in scheduler.get_jobs()
+            }
         finally:
             job_env.install(None)
