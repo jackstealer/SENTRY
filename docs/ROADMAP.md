@@ -155,7 +155,7 @@ Tasks
 - [ ] 4.2 Real `ReminderScheduler` implementation: create/replace/remove jobs in sync with `reminders` rows
 - [ ] 4.3 Jobs: `routine_materialize`, `morning_brief`, `evening_review`, `weekly_review`, `reminder:*`, `nudge:*`
 - [ ] 4.4 `proactive_runs` idempotency + quiet hours enforcement
-- [ ] 4.5 `OutboundChannel` interface (`send(text, buttons?)`) with `LogChannel` impl
+- [x] 4.5 `OutboundChannel` interface (`send(text, buttons?)`) with `LogChannel` impl
 - [ ] 4.6 Cron times read from `preferences` (changing a preference reschedules the job)
 - [ ] 4.7 `/debug/trigger/{job}` endpoint (dev only)
 - [ ] 4.8 Restart test: schedule reminder → kill process → restart → reminder still fires
