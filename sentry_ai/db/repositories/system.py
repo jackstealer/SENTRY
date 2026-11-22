@@ -21,6 +21,13 @@ class SystemRepo(Repo):
         )
         return await self.session.scalar(stmt) is not None
 
+    async def release_proactive_run(self, job_key: str, local_date: date) -> bool:
+        """Undo a claim whose send failed, so a retry can still go out that day."""
+        stmt = sa.delete(ProactiveRun).where(
+            ProactiveRun.job_key == job_key, ProactiveRun.local_date == local_date
+        )
+        return await self._affected(stmt.returning(ProactiveRun.job_key))
+
     async def record_llm_usage(self, data: LLMUsageCreate) -> LLMUsageDTO:
         stmt = sa.insert(LLMUsage).values(**data.model_dump())
         return await self._created(stmt.returning(LLMUsage), LLMUsageDTO)

@@ -51,6 +51,9 @@ async def test_proactive_run_is_claimed_once_per_job_and_day(system: SystemRepo)
     assert not await system.claim_proactive_run("morning_brief", day)  # restart: no duplicate
     assert await system.claim_proactive_run("morning_brief", day + timedelta(days=1))
     assert await system.claim_proactive_run("evening_review", day)
+    assert await system.release_proactive_run("evening_review", day)  # the send failed
+    assert not await system.release_proactive_run("evening_review", day)
+    assert await system.claim_proactive_run("evening_review", day)  # so a retry can claim it
 
 
 async def test_llm_usage_round_trip(system: SystemRepo, session: AsyncSession) -> None:

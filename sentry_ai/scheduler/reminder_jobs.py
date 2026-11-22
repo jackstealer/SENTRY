@@ -23,6 +23,7 @@ from sentry_ai.scheduler.reminders import (
     nudge_job_id,
     reminder_job_id,
 )
+from sentry_ai.services.quiet_hours import quiet_until, quiet_window
 from sentry_ai.services.time import local_date_of
 
 log = get_logger(__name__)
@@ -91,6 +92,13 @@ async def fire_reminder(reminder_id: int) -> None:
             await repo.update(reminder_id, ReminderUpdate(status="cancelled"))
             log.info("reminder_dropped", reminder_id=reminder_id, reason="target_closed")
             return
+        until = quiet_until(now, await quiet_window(session, env.user_id))
+        if until is not None:  # never during quiet hours: hold it until they end
+            held = await repo.update(reminder_id, ReminderUpdate(fire_at=until))
+            if held is not None:
+                await env.reminders.schedule(held)
+            log.info("reminder_held", reminder_id=reminder_id, until=until)
+            return
         message_id = await env.channel.send(
             reminder_text(reminder, target.when, now), reminder_buttons(reminder_id)
         )
@@ -114,6 +122,11 @@ async def fire_nudge(reminder_id: int) -> None:
         reminder = await repo.get(reminder_id)
         if reminder is None or reminder.status != "sent" or reminder.nudge_sent:
             log.info("nudge_skipped", reminder_id=reminder_id)
+            return
+        until = quiet_until(env.clock(), await quiet_window(session, env.user_id))
+        if until is not None:
+            env.reminders.schedule_nudge(reminder_id, until)
+            log.info("nudge_held", reminder_id=reminder_id, until=until)
             return
         await env.channel.send(
             f'Still on for "{reminder.message}"? Reply done / snooze / skip.',

@@ -8,6 +8,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 from sentry_ai.db.enums import ReminderTarget
 from sentry_ai.db.repositories import HabitRepo, PlanRepo, RoutineRepo, TaskRepo
 from sentry_ai.db.schemas import ReminderCreate, ReminderDTO
+from sentry_ai.services.quiet_hours import quiet_until, quiet_window
 from sentry_ai.services.reminders import ReminderError
 from sentry_ai.tools.base import ToolArgs, ToolContext, ToolResult, ToolTier, fail, ok, tool, when
 from sentry_ai.tools.tasks import WHEN
@@ -54,10 +55,11 @@ async def create_reminder(args: CreateReminderArgs, ctx: ToolContext) -> ToolRes
         reminder = await ctx.reminder_service().create(data)
     except ReminderError as exc:
         return fail(exc.error, str(exc))
-    return ok(
-        f"Reminder {reminder.id} set for {when(reminder.fire_at)}: {reminder.message}",
-        reminder=view(reminder),
-    )
+    message = f"Reminder {reminder.id} set for {when(reminder.fire_at)}: {reminder.message}"
+    held_until = quiet_until(reminder.fire_at, await quiet_window(ctx.session, ctx.user_id))
+    if held_until is not None:
+        message += f" That's inside your quiet hours, so it will arrive at {when(held_until)}."
+    return ok(message, reminder=view(reminder))
 
 
 class SnoozeArgs(ToolArgs):

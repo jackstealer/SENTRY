@@ -161,3 +161,14 @@ async def test_cancel_keeps_the_task_and_only_touches_mine(call, session, user_i
     assert task is not None and task.status == "todo"
     theirs = await ReminderRepo(session, "someone-else").list_pending()
     assert theirs == []
+
+
+async def test_create_reminder_says_when_quiet_hours_will_hold_it(call, session, user_id):
+    from sentry_ai.db.repositories import PreferenceRepo
+
+    await PreferenceRepo(session, user_id).set("quiet_hours", {"start": "23:30", "end": "06:30"})
+    result = await call("create_reminder", message="Stretch", fire_at="2026-11-22T23:45:00+05:30")
+    assert result.ok
+    assert result.message.endswith("it will arrive at Mon 23 Nov 06:30.")
+    normal = await call("create_reminder", message="Water", fire_at="2026-11-22T19:00:00+05:30")
+    assert "quiet hours" not in normal.message
